@@ -1,0 +1,229 @@
+# Qa department.
+# enabled: false = defined in the org chart, no implementation yet (shown as an empty desk).
+- id: qa_lead_01
+  name: Farah
+  role: QA Lead
+  responsibilities:
+  - test strategy
+  - release sign-off
+  enabled: false
+  supervisor: producer_01
+  model:
+    tier: standard
+  tools:
+  - read_file
+  - list_dir
+  - search_files
+  - find_symbol
+  - find_references
+  - inspect_dependencies
+  - analyze_impact
+  - analyze_call_graph
+  - knowledge_search
+  permissions:
+    read_docs: 'YES'
+    read_code: 'YES'
+    knowledge_search: 'YES'
+    git_read: 'YES'
+    unreal_read: 'YES'
+    write_code: 'NO'
+    git_commit: 'NO'
+    merge: 'NO'
+    deploy: 'NO'
+    unreal_editor_modify: 'NO'
+  avatar:
+    room: qa
+    color: '#2fae6b'
+    desk: 0
+- id: qa_functional_01
+  name: Ananya
+  role: Functional QA Engineer
+  responsibilities:
+  - independent validation
+  - acceptance-criteria evidence
+  - defect reports
+  enabled: true
+  supervisor: qa_lead_01
+  model:
+    tier: standard
+  tools:
+  - read_file
+  - list_dir
+  - search_files
+  - find_symbol
+  - find_references
+  - inspect_dependencies
+  - analyze_impact
+  - analyze_call_graph
+  - knowledge_search
+  - git_diff
+  - git_status
+  - run_automation_tests
+  - get_editor_state
+  - get_current_level
+  - find_actor
+  - inspect_actor
+  - inspect_asset
+  - get_runtime_telemetry
+  permissions:
+    read_docs: 'YES'
+    read_code: 'YES'
+    knowledge_search: 'YES'
+    git_read: 'YES'
+    unreal_read: 'YES'
+    write_code: 'NO'
+    git_commit: 'NO'
+    merge: 'NO'
+    deploy: 'NO'
+    unreal_editor_modify: 'NO'
+    run_tests: 'YES'
+    unreal_runtime: 'YES'
+  avatar:
+    room: qa
+    color: '#39c27d'
+    desk: 1
+  capability: qa
+  max_iterations: 20
+  cost_budget: 3.0
+- id: qa_gameplay_01
+  name: Om
+  role: Gameplay QA
+  responsibilities:
+  - gameplay test passes
+  - feel and balance checks
+  enabled: false
+  supervisor: qa_lead_01
+  model:
+    tier: standard
+  tools:
+  - read_file
+  - list_dir
+  - search_files
+  - find_symbol
+  - find_references
+  - inspect_dependencies
+  - analyze_impact
+  - analyze_call_graph
+  - knowledge_search
+  permissions:
+    read_docs: 'YES'
+    read_code: 'YES'
+    knowledge_search: 'YES'
+    git_read: 'YES'
+    unreal_read: 'YES'
+    write_code: 'NO'
+    git_commit: 'NO'
+    merge: 'NO'
+    deploy: 'NO'
+    unreal_editor_modify: 'NO'
+  avatar:
+    room: qa
+    color: '#49cc8a'
+    desk: 2
+- id: qa_regression_01
+  name: Lila
+  role: Regression QA
+  responsibilities:
+  - regression suites
+  - flaky test triage
+  enabled: false
+  supervisor: qa_lead_01
+  model:
+    tier: standard
+  tools:
+  - read_file
+  - list_dir
+  - search_files
+  - find_symbol
+  - find_references
+  - inspect_dependencies
+  - analyze_impact
+  - analyze_call_graph
+  - knowledge_search
+  permissions:
+    read_docs: 'YES'
+    read_code: 'YES'
+    knowledge_search: 'YES'
+    git_read: 'YES'
+    unreal_read: 'YES'
+    write_code: 'NO'
+    git_commit: 'NO'
+    merge: 'NO'
+    deploy: 'NO'
+    unreal_editor_modify: 'NO'
+  avatar:
+    room: qa
+    color: '#28a362'
+    desk: 3
+- id: qa_performance_01
+  name: Yash
+  role: Performance QA
+  responsibilities:
+  - frame time budgets
+  - memory
+  - load times
+  enabled: false
+  supervisor: qa_lead_01
+  model:
+    tier: standard
+  tools:
+  - read_file
+  - list_dir
+  - search_files
+  - find_symbol
+  - find_references
+  - inspect_dependencies
+  - analyze_impact
+  - analyze_call_graph
+  - knowledge_search
+  permissions:
+    read_docs: 'YES'
+    read_code: 'YES'
+    knowledge_search: 'YES'
+    git_read: 'YES'
+    unreal_read: 'YES'
+    write_code: 'NO'
+    git_commit: 'NO'
+    merge: 'NO'
+    deploy: 'NO'
+    unreal_editor_modify: 'NO'
+  avatar:
+    room: qa
+    color: '#1f9958'
+    desk: 4
+- id: crash_investigator_01
+  name: Zoya
+  role: Crash Investigator
+  responsibilities:
+  - crash dumps
+  - callstack triage
+  - repro steps
+  enabled: false
+  supervisor: qa_lead_01
+  model:
+    tier: standard
+  tools:
+  - read_file
+  - list_dir
+  - search_files
+  - find_symbol
+  - find_references
+  - inspect_dependencies
+  - analyze_impact
+  - analyze_call_graph
+  - knowledge_search
+  permissions:
+    read_docs: 'YES'
+    read_code: 'YES'
+    knowledge_search: 'YES'
+    git_read: 'YES'
+    unreal_read: 'YES'
+    write_code: 'NO'
+    git_commit: 'NO'
+    merge: 'NO'
+    deploy: 'NO'
+    unreal_editor_modify: 'NO'
+  avatar:
+    room: qa
+    color: '#57d695'
+    desk: 5

@@ -1,0 +1,94 @@
+# Devops department.
+# enabled: false = defined in the org chart, no implementation yet (shown as an empty desk).
+- id: build_engineer_01
+  name: Rohan
+  role: Build Engineer
+  responsibilities:
+  - official builds
+  - build health
+  - compiler diagnostics
+  enabled: true
+  supervisor: producer_01
+  model:
+    tier: standard
+  tools: []
+  permissions:
+    compile: 'YES'
+    read_code: 'YES'
+  avatar:
+    room: devops
+    color: '#e0574f'
+    desk: 0
+  capability: build
+- id: ci_agent_01
+  name: Kiran
+  role: CI Agent
+  responsibilities:
+  - pipelines
+  - automated checks
+  enabled: false
+  supervisor: build_engineer_01
+  model:
+    tier: standard
+  tools:
+  - read_file
+  - list_dir
+  - search_files
+  - find_symbol
+  - find_references
+  - inspect_dependencies
+  - analyze_impact
+  - analyze_call_graph
+  - knowledge_search
+  permissions:
+    read_docs: 'YES'
+    read_code: 'YES'
+    knowledge_search: 'YES'
+    git_read: 'YES'
+    unreal_read: 'YES'
+    write_code: 'NO'
+    git_commit: 'NO'
+    merge: 'NO'
+    deploy: 'NO'
+    unreal_editor_modify: 'NO'
+  avatar:
+    room: devops
+    color: '#e87a5f'
+    desk: 1
+- id: release_agent_01
+  name: Aditi
+  role: Release Agent
+  responsibilities:
+  - packaging
+  - dev deployment
+  - release notes
+  enabled: false
+  supervisor: build_engineer_01
+  model:
+    tier: standard
+  tools:
+  - read_file
+  - list_dir
+  - search_files
+  - find_symbol
+  - find_references
+  - inspect_dependencies
+  - analyze_impact
+  - analyze_call_graph
+  - knowledge_search
+  permissions:
+    read_docs: 'YES'
+    read_code: 'YES'
+    knowledge_search: 'YES'
+    git_read: 'YES'
+    unreal_read: 'YES'
+    write_code: 'NO'
+    git_commit: 'NO'
+    merge: 'NO'
+    deploy: APPROVAL
+    unreal_editor_modify: 'NO'
+    package: 'YES'
+  avatar:
+    room: devops
+    color: '#d94c6a'
+    desk: 2

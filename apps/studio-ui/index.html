@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Shunya Studios</title>
+  <link rel="stylesheet" href="/ui/studio.css">
+</head>
+<body>
+  <header id="topbar">
+    <div class="brand">
+      <span class="logo">◈</span>
+      <div>
+        <div class="studio-name">SHUNYA STUDIOS</div>
+        <div class="project" id="project-line">connecting…</div>
+      </div>
+    </div>
+    <div class="epic" id="epic">
+      <div class="epic-title" id="epic-title">No active feature</div>
+      <div class="bar"><div class="fill" id="epic-fill"></div></div>
+    </div>
+    <div class="chips" id="chips"></div>
+  </header>
+
+  <main>
+    <section id="stage">
+      <canvas id="office"></canvas>
+      <div id="tooltip" hidden></div>
+      <div id="conn" class="conn off">offline</div>
+      <form id="request-form" autocomplete="off">
+        <input id="request-input" type="text" maxlength="2000"
+               placeholder="Tell the studio what to build…  e.g. Create a simple Unreal health component.">
+        <button type="submit">Send to Director</button>
+      </form>
+    </section>
+
+    <aside id="side">
+      <nav class="tabs" id="tabs">
+        <button data-tab="tasks" class="active">Tasks</button>
+        <button data-tab="approvals">Approvals <span class="badge" id="approval-count" hidden>0</span></button>
+        <button data-tab="activity">Activity</button>
+        <button data-tab="employee">Employee</button>
+      </nav>
+      <div class="panel" id="panel-tasks"></div>
+      <div class="panel" id="panel-approvals" hidden></div>
+      <div class="panel" id="panel-activity" hidden></div>
+      <div class="panel" id="panel-employee" hidden>
+        <p class="muted">Click an employee in the office to see what they are doing.</p>
+      </div>
+    </aside>
+  </main>
+
+  <div id="modal" hidden>
+    <div class="modal-box">
+      <div class="modal-head"><span id="modal-title"></span><button id="modal-close" aria-label="Close">✕</button></div>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <script src="/ui/studio.js"></script>
+</body>
+</html>

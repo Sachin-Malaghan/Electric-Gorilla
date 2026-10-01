@@ -1,0 +1,74 @@
+# Documentation department.
+# enabled: false = defined in the org chart, no implementation yet (shown as an empty desk).
+- id: technical_writer_01
+  name: Nikhil
+  role: Technical Writer
+  responsibilities:
+  - technical docs
+  - API references
+  enabled: false
+  supervisor: producer_01
+  model:
+    tier: standard
+  tools:
+  - read_file
+  - list_dir
+  - search_files
+  - find_symbol
+  - find_references
+  - inspect_dependencies
+  - analyze_impact
+  - analyze_call_graph
+  - knowledge_search
+  permissions:
+    read_docs: 'YES'
+    read_code: 'YES'
+    knowledge_search: 'YES'
+    git_read: 'YES'
+    unreal_read: 'YES'
+    write_code: 'NO'
+    git_commit: 'NO'
+    merge: 'NO'
+    deploy: 'NO'
+    unreal_editor_modify: 'NO'
+    write_docs: 'YES'
+  avatar:
+    room: documentation
+    color: '#9aa3b2'
+    desk: 0
+- id: knowledge_curator_01
+  name: Sara
+  role: Knowledge Curator
+  responsibilities:
+  - knowledge base
+  - ADR hygiene
+  - retrieval quality
+  enabled: false
+  supervisor: producer_01
+  model:
+    tier: standard
+  tools:
+  - read_file
+  - list_dir
+  - search_files
+  - find_symbol
+  - find_references
+  - inspect_dependencies
+  - analyze_impact
+  - analyze_call_graph
+  - knowledge_search
+  permissions:
+    read_docs: 'YES'
+    read_code: 'YES'
+    knowledge_search: 'YES'
+    git_read: 'YES'
+    unreal_read: 'YES'
+    write_code: 'NO'
+    git_commit: 'NO'
+    merge: 'NO'
+    deploy: 'NO'
+    unreal_editor_modify: 'NO'
+  avatar:
+    room: documentation
+    color: '#aab3c2'
+    desk: 1

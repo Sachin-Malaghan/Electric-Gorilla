@@ -1,0 +1,402 @@
+# Engineering department.
+# enabled: false = defined in the org chart, no implementation yet (shown as an empty desk).
+- id: technical_director_01
+  name: Vikram
+  role: Technical Director / Code Reviewer
+  responsibilities:
+  - independent code review
+  - architecture decisions
+  - engineering standards
+  enabled: true
+  supervisor: producer_01
+  model:
+    tier: strong
+  tools:
+  - read_file
+  - list_dir
+  - search_files
+  - find_symbol
+  - find_references
+  - inspect_dependencies
+  - analyze_impact
+  - analyze_call_graph
+  - knowledge_search
+  - git_diff
+  - git_status
+  permissions:
+    read_docs: 'YES'
+    read_code: 'YES'
+    knowledge_search: 'YES'
+    git_read: 'YES'
+    unreal_read: 'YES'
+    write_code: 'NO'
+    git_commit: 'NO'
+    merge: 'NO'
+    deploy: 'NO'
+    unreal_editor_modify: 'NO'
+  avatar:
+    room: engineering
+    color: '#7a5cff'
+    desk: 0
+  capability: reviewer
+  max_iterations: 20
+  cost_budget: 3.0
+- id: gameplay_programmer_01
+  name: Arjun
+  role: Senior Unreal Gameplay Programmer
+  responsibilities:
+  - gameplay systems
+  - Unreal C++
+  - components
+  - actors
+  - abilities
+  - replication
+  enabled: true
+  supervisor: technical_director_01
+  model:
+    tier: standard
+  tools:
+  - read_file
+  - list_dir
+  - search_files
+  - find_symbol
+  - find_references
+  - inspect_dependencies
+  - analyze_impact
+  - analyze_call_graph
+  - knowledge_search
+  - create_file
+  - patch_file
+  - compile_project
+  - run_automation_tests
+  - git_diff
+  - git_status
+  - get_editor_state
+  - get_current_level
+  - find_actor
+  - inspect_actor
+  - inspect_asset
+  permissions:
+    read_docs: 'YES'
+    read_code: 'YES'
+    knowledge_search: 'YES'
+    git_read: 'YES'
+    unreal_read: 'YES'
+    write_code: CONDITIONAL
+    compile: 'YES'
+    run_tests: 'YES'
+    git_commit: CONDITIONAL
+    merge: 'NO'
+    deploy: 'NO'
+    unreal_editor_modify: 'NO'
+  avatar:
+    room: engineering
+    color: '#4f8cff'
+    desk: 1
+  capability: programmer
+  write_globs:
+  - Source/*
+  - Plugins/*/Source/*
+  - Docs/*
+  max_iterations: 40
+  max_tool_calls: 120
+  max_runtime_s: 3600
+  token_budget: 1500000
+  cost_budget: 8.0
+  escalation_policy:
+    escalate_to: technical_director_01
+    after_consecutive_failures: 3
+  validation_policy:
+    required_checks:
+    - compile
+    - tests
+    - review
+    - qa
+- id: unreal_programmer_01
+  name: Diya
+  role: Unreal Engine Programmer
+  responsibilities:
+  - engine integration
+  - subsystems
+  - modules
+  - automation tests
+  enabled: true
+  supervisor: technical_director_01
+  model:
+    tier: standard
+  tools:
+  - read_file
+  - list_dir
+  - search_files
+  - find_symbol
+  - find_references
+  - inspect_dependencies
+  - analyze_impact
+  - analyze_call_graph
+  - knowledge_search
+  - create_file
+  - patch_file
+  - compile_project
+  - run_automation_tests
+  - git_diff
+  - git_status
+  - get_editor_state
+  - get_current_level
+  - find_actor
+  - inspect_actor
+  - inspect_asset
+  permissions:
+    read_docs: 'YES'
+    read_code: 'YES'
+    knowledge_search: 'YES'
+    git_read: 'YES'
+    unreal_read: 'YES'
+    write_code: CONDITIONAL
+    compile: 'YES'
+    run_tests: 'YES'
+    git_commit: CONDITIONAL
+    merge: 'NO'
+    deploy: 'NO'
+    unreal_editor_modify: 'NO'
+  avatar:
+    room: engineering
+    color: '#3fb6c9'
+    desk: 2
+  capability: programmer
+  write_globs:
+  - Source/*
+  - Plugins/*/Source/*
+  - Docs/*
+  max_iterations: 40
+  max_tool_calls: 120
+  max_runtime_s: 3600
+  token_budget: 1500000
+  cost_budget: 8.0
+  escalation_policy:
+    escalate_to: technical_director_01
+    after_consecutive_failures: 3
+  validation_policy:
+    required_checks:
+    - compile
+    - tests
+    - review
+    - qa
+- id: software_architect_01
+  name: Ishaan
+  role: Software Architect
+  responsibilities:
+  - system design
+  - module boundaries
+  - ADRs
+  enabled: false
+  supervisor: technical_director_01
+  model:
+    tier: standard
+  tools:
+  - read_file
+  - list_dir
+  - search_files
+  - find_symbol
+  - find_references
+  - inspect_dependencies
+  - analyze_impact
+  - analyze_call_graph
+  - knowledge_search
+  permissions:
+    read_docs: 'YES'
+    read_code: 'YES'
+    knowledge_search: 'YES'
+    git_read: 'YES'
+    unreal_read: 'YES'
+    write_code: 'NO'
+    git_commit: 'NO'
+    merge: 'NO'
+    deploy: 'NO'
+    unreal_editor_modify: 'NO'
+  avatar:
+    room: engineering
+    color: '#6d7cff'
+    desk: 3
+- id: ai_programmer_01
+  name: Tara
+  role: AI Programmer
+  responsibilities:
+  - behavior trees
+  - EQS
+  - navigation
+  - perception
+  enabled: false
+  supervisor: technical_director_01
+  model:
+    tier: standard
+  tools:
+  - read_file
+  - list_dir
+  - search_files
+  - find_symbol
+  - find_references
+  - inspect_dependencies
+  - analyze_impact
+  - analyze_call_graph
+  - knowledge_search
+  permissions:
+    read_docs: 'YES'
+    read_code: 'YES'
+    knowledge_search: 'YES'
+    git_read: 'YES'
+    unreal_read: 'YES'
+    write_code: 'NO'
+    git_commit: 'NO'
+    merge: 'NO'
+    deploy: 'NO'
+    unreal_editor_modify: 'NO'
+  avatar:
+    room: engineering
+    color: '#4fa3ff'
+    desk: 4
+- id: graphics_programmer_01
+  name: Neel
+  role: Graphics Programmer
+  responsibilities:
+  - materials
+  - shaders
+  - rendering features
+  enabled: false
+  supervisor: technical_director_01
+  model:
+    tier: standard
+  tools:
+  - read_file
+  - list_dir
+  - search_files
+  - find_symbol
+  - find_references
+  - inspect_dependencies
+  - analyze_impact
+  - analyze_call_graph
+  - knowledge_search
+  permissions:
+    read_docs: 'YES'
+    read_code: 'YES'
+    knowledge_search: 'YES'
+    git_read: 'YES'
+    unreal_read: 'YES'
+    write_code: 'NO'
+    git_commit: 'NO'
+    merge: 'NO'
+    deploy: 'NO'
+    unreal_editor_modify: 'NO'
+  avatar:
+    room: engineering
+    color: '#5b8def'
+    desk: 5
+- id: ui_programmer_01
+  name: Sana
+  role: UI Programmer
+  responsibilities:
+  - UMG
+  - Slate
+  - HUD
+  - menus
+  enabled: false
+  supervisor: technical_director_01
+  model:
+    tier: standard
+  tools:
+  - read_file
+  - list_dir
+  - search_files
+  - find_symbol
+  - find_references
+  - inspect_dependencies
+  - analyze_impact
+  - analyze_call_graph
+  - knowledge_search
+  permissions:
+    read_docs: 'YES'
+    read_code: 'YES'
+    knowledge_search: 'YES'
+    git_read: 'YES'
+    unreal_read: 'YES'
+    write_code: 'NO'
+    git_commit: 'NO'
+    merge: 'NO'
+    deploy: 'NO'
+    unreal_editor_modify: 'NO'
+  avatar:
+    room: engineering
+    color: '#5aa0e6'
+    desk: 6
+- id: networking_programmer_01
+  name: Dev
+  role: Networking Programmer
+  responsibilities:
+  - replication
+  - RPCs
+  - prediction
+  - sessions
+  enabled: false
+  supervisor: technical_director_01
+  model:
+    tier: standard
+  tools:
+  - read_file
+  - list_dir
+  - search_files
+  - find_symbol
+  - find_references
+  - inspect_dependencies
+  - analyze_impact
+  - analyze_call_graph
+  - knowledge_search
+  permissions:
+    read_docs: 'YES'
+    read_code: 'YES'
+    knowledge_search: 'YES'
+    git_read: 'YES'
+    unreal_read: 'YES'
+    write_code: 'NO'
+    git_commit: 'NO'
+    merge: 'NO'
+    deploy: 'NO'
+    unreal_editor_modify: 'NO'
+  avatar:
+    room: engineering
+    color: '#4a7fe0'
+    desk: 7
+- id: tools_programmer_01
+  name: Riya
+  role: Tools Programmer
+  responsibilities:
+  - editor tools
+  - pipelines
+  - automation
+  enabled: false
+  supervisor: technical_director_01
+  model:
+    tier: standard
+  tools:
+  - read_file
+  - list_dir
+  - search_files
+  - find_symbol
+  - find_references
+  - inspect_dependencies
+  - analyze_impact
+  - analyze_call_graph
+  - knowledge_search
+  permissions:
+    read_docs: 'YES'
+    read_code: 'YES'
+    knowledge_search: 'YES'
+    git_read: 'YES'
+    unreal_read: 'YES'
+    write_code: 'NO'
+    git_commit: 'NO'
+    merge: 'NO'
+    deploy: 'NO'
+    unreal_editor_modify: 'NO'
+  avatar:
+    room: engineering
+    color: '#6fa8ff'
+    desk: 8

@@ -1,0 +1,57 @@
+# V1 deployment (spec 46): backend services in containers, Unreal Editor on the Windows host.
+#
+#   docker compose -f infrastructure/docker/docker-compose.yml up -d postgres redis
+#
+# then run the studio on the host (it needs the local Unreal toolchain):
+#
+#   set DATABASE_URL=postgresql+psycopg://shunya:shunya@localhost:5432/shunya
+#   set REDIS_URL=redis://localhost:6379/0
+#   shunya serve
+#
+# The `studio` service below runs the API in a container too, for setups where builds are
+# delegated elsewhere; inside a container no Unreal toolchain exists, so builds/tests are SKIPPED.
+# NOTE: written for V1 but not exercised on the original dev machine (Docker was not installed there).
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: shunya
+      POSTGRES_PASSWORD: shunya
+      POSTGRES_DB: shunya
+    ports: ["127.0.0.1:5432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shunya"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports: ["127.0.0.1:6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+  studio:
+    profiles: ["containerized-api"]
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg://shunya:shunya@postgres:5432/shunya
+      REDIS_URL: redis://redis:6379/0
+      SHUNYA_HOST: 0.0.0.0
+      SHUNYA_MODEL_PROVIDER: ${SHUNYA_MODEL_PROVIDER:-scripted}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    ports: ["127.0.0.1:8400:8400"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    volumes: ["studio-data:/app/data", "studio-workspace:/app/workspace"]
+
+volumes:
+  pgdata:
+  studio-data:
+  studio-workspace:

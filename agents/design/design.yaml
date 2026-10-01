@@ -1,0 +1,216 @@
+# Design department.
+# enabled: false = defined in the org chart, no implementation yet (shown as an empty desk).
+- id: lead_designer_01
+  name: Maya
+  role: Lead Designer
+  responsibilities:
+  - feature specifications
+  - design pillars
+  enabled: false
+  supervisor: producer_01
+  model:
+    tier: standard
+  tools:
+  - read_file
+  - list_dir
+  - search_files
+  - find_symbol
+  - find_references
+  - inspect_dependencies
+  - analyze_impact
+  - analyze_call_graph
+  - knowledge_search
+  permissions:
+    read_docs: 'YES'
+    read_code: 'YES'
+    knowledge_search: 'YES'
+    git_read: 'YES'
+    unreal_read: 'YES'
+    write_code: 'NO'
+    git_commit: 'NO'
+    merge: 'NO'
+    deploy: 'NO'
+    unreal_editor_modify: 'NO'
+    write_docs: 'YES'
+  avatar:
+    room: design
+    color: '#e6589c'
+    desk: 0
+- id: gameplay_designer_01
+  name: Rahul
+  role: Gameplay Designer
+  responsibilities:
+  - mechanics
+  - tuning
+  - player verbs
+  enabled: false
+  supervisor: lead_designer_01
+  model:
+    tier: standard
+  tools:
+  - read_file
+  - list_dir
+  - search_files
+  - find_symbol
+  - find_references
+  - inspect_dependencies
+  - analyze_impact
+  - analyze_call_graph
+  - knowledge_search
+  permissions:
+    read_docs: 'YES'
+    read_code: 'YES'
+    knowledge_search: 'YES'
+    git_read: 'YES'
+    unreal_read: 'YES'
+    write_code: 'NO'
+    git_commit: 'NO'
+    merge: 'NO'
+    deploy: 'NO'
+    unreal_editor_modify: 'NO'
+  avatar:
+    room: design
+    color: '#ee6fae'
+    desk: 1
+- id: combat_designer_01
+  name: Aarav
+  role: Combat Designer
+  responsibilities:
+  - combat loops
+  - enemy archetypes
+  enabled: false
+  supervisor: lead_designer_01
+  model:
+    tier: standard
+  tools:
+  - read_file
+  - list_dir
+  - search_files
+  - find_symbol
+  - find_references
+  - inspect_dependencies
+  - analyze_impact
+  - analyze_call_graph
+  - knowledge_search
+  permissions:
+    read_docs: 'YES'
+    read_code: 'YES'
+    knowledge_search: 'YES'
+    git_read: 'YES'
+    unreal_read: 'YES'
+    write_code: 'NO'
+    git_commit: 'NO'
+    merge: 'NO'
+    deploy: 'NO'
+    unreal_editor_modify: 'NO'
+  avatar:
+    room: design
+    color: '#f085bb'
+    desk: 2
+- id: level_designer_01
+  name: Nisha
+  role: Level Designer
+  responsibilities:
+  - level layouts
+  - encounter pacing
+  enabled: false
+  supervisor: lead_designer_01
+  model:
+    tier: standard
+  tools:
+  - read_file
+  - list_dir
+  - search_files
+  - find_symbol
+  - find_references
+  - inspect_dependencies
+  - analyze_impact
+  - analyze_call_graph
+  - knowledge_search
+  permissions:
+    read_docs: 'YES'
+    read_code: 'YES'
+    knowledge_search: 'YES'
+    git_read: 'YES'
+    unreal_read: 'YES'
+    write_code: 'NO'
+    git_commit: 'NO'
+    merge: 'NO'
+    deploy: 'NO'
+    unreal_editor_modify: 'NO'
+  avatar:
+    room: design
+    color: '#dd4d90'
+    desk: 3
+- id: economy_designer_01
+  name: Kunal
+  role: Economy Designer
+  responsibilities:
+  - progression
+  - rewards
+  - currencies
+  enabled: false
+  supervisor: lead_designer_01
+  model:
+    tier: standard
+  tools:
+  - read_file
+  - list_dir
+  - search_files
+  - find_symbol
+  - find_references
+  - inspect_dependencies
+  - analyze_impact
+  - analyze_call_graph
+  - knowledge_search
+  permissions:
+    read_docs: 'YES'
+    read_code: 'YES'
+    knowledge_search: 'YES'
+    git_read: 'YES'
+    unreal_read: 'YES'
+    write_code: 'NO'
+    git_commit: 'NO'
+    merge: 'NO'
+    deploy: 'NO'
+    unreal_editor_modify: 'NO'
+  avatar:
+    room: design
+    color: '#d1407f'
+    desk: 4
+- id: narrative_designer_01
+  name: Ira
+  role: Narrative Designer
+  responsibilities:
+  - story
+  - dialogue
+  - world lore
+  enabled: false
+  supervisor: lead_designer_01
+  model:
+    tier: standard
+  tools:
+  - read_file
+  - list_dir
+  - search_files
+  - find_symbol
+  - find_references
+  - inspect_dependencies
+  - analyze_impact
+  - analyze_call_graph
+  - knowledge_search
+  permissions:
+    read_docs: 'YES'
+    read_code: 'YES'
+    knowledge_search: 'YES'
+    git_read: 'YES'
+    unreal_read: 'YES'
+    write_code: 'NO'
+    git_commit: 'NO'
+    merge: 'NO'
+    deploy: 'NO'
+    unreal_editor_modify: 'NO'
+  avatar:
+    room: design
+    color: '#f29ac8'
+    desk: 5

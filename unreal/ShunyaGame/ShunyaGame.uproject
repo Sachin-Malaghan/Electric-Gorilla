@@ -1,0 +1,12 @@
+{
+  "FileVersion": 3,
+  "EngineAssociation": "5.8",
+  "Category": "",
+  "Description": "ShunyaGame - the game developed by Shunya Studio AI",
+  "Modules": [
+    { "Name": "ShunyaGame", "Type": "Runtime", "LoadingPhase": "Default" }
+  ],
+  "Plugins": [
+    { "Name": "ShunyaAgentBridge", "Enabled": true }
+  ]
+}

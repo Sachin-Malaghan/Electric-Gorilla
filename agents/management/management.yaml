@@ -1,0 +1,81 @@
+# Management department.
+# enabled: false = defined in the org chart, no implementation yet (shown as an empty desk).
+- id: studio_director_01
+  name: Meera
+  role: Studio Director
+  responsibilities:
+  - interpret game objectives
+  - scope features
+  - flag product risk
+  enabled: true
+  supervisor: null
+  model:
+    tier: standard
+  tools:
+  - read_file
+  - list_dir
+  - search_files
+  - find_symbol
+  - find_references
+  - inspect_dependencies
+  - analyze_impact
+  - analyze_call_graph
+  - knowledge_search
+  permissions:
+    read_docs: 'YES'
+    read_code: 'YES'
+    knowledge_search: 'YES'
+    git_read: 'YES'
+    unreal_read: 'YES'
+    write_code: 'NO'
+    git_commit: 'NO'
+    merge: 'NO'
+    deploy: 'NO'
+    unreal_editor_modify: 'NO'
+  avatar:
+    room: executive
+    color: '#c9a227'
+    desk: 0
+  capability: director
+  max_iterations: 12
+  cost_budget: 1.5
+- id: producer_01
+  name: Kabir
+  role: Producer
+  responsibilities:
+  - create epics and typed tasks
+  - acceptance criteria
+  - task graph and dependencies
+  - track delivery
+  enabled: true
+  supervisor: studio_director_01
+  model:
+    tier: standard
+  tools:
+  - read_file
+  - list_dir
+  - search_files
+  - find_symbol
+  - find_references
+  - inspect_dependencies
+  - analyze_impact
+  - analyze_call_graph
+  - knowledge_search
+  permissions:
+    read_docs: 'YES'
+    read_code: 'YES'
+    knowledge_search: 'YES'
+    git_read: 'YES'
+    unreal_read: 'YES'
+    write_code: 'NO'
+    git_commit: 'NO'
+    merge: 'NO'
+    deploy: 'NO'
+    unreal_editor_modify: 'NO'
+  avatar:
+    room: executive
+    color: '#d4783a'
+    desk: 1
+  capability: producer
+  max_iterations: 16
+  cost_budget: 2.0

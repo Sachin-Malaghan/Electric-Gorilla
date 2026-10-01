@@ -1,0 +1,214 @@
+# Environment department.
+# enabled: false = defined in the org chart, no implementation yet (shown as an empty desk).
+- id: environment_director_01
+  name: Gauri
+  role: Environment Director
+  responsibilities:
+  - environment briefs
+  - world layout
+  enabled: false
+  supervisor: producer_01
+  model:
+    tier: standard
+  tools:
+  - read_file
+  - list_dir
+  - search_files
+  - find_symbol
+  - find_references
+  - inspect_dependencies
+  - analyze_impact
+  - analyze_call_graph
+  - knowledge_search
+  permissions:
+    read_docs: 'YES'
+    read_code: 'YES'
+    knowledge_search: 'YES'
+    git_read: 'YES'
+    unreal_read: 'YES'
+    write_code: 'NO'
+    git_commit: 'NO'
+    merge: 'NO'
+    deploy: 'NO'
+    unreal_editor_modify: 'NO'
+  avatar:
+    room: environment
+    color: '#8bbf3f'
+    desk: 0
+- id: world_builder_01
+  name: Samar
+  role: World Builder
+  responsibilities:
+  - blockouts
+  - world partition
+  enabled: false
+  supervisor: environment_director_01
+  model:
+    tier: standard
+  tools:
+  - read_file
+  - list_dir
+  - search_files
+  - find_symbol
+  - find_references
+  - inspect_dependencies
+  - analyze_impact
+  - analyze_call_graph
+  - knowledge_search
+  permissions:
+    read_docs: 'YES'
+    read_code: 'YES'
+    knowledge_search: 'YES'
+    git_read: 'YES'
+    unreal_read: 'YES'
+    write_code: 'NO'
+    git_commit: 'NO'
+    merge: 'NO'
+    deploy: 'NO'
+    unreal_editor_modify: 'NO'
+  avatar:
+    room: environment
+    color: '#9bcc55'
+    desk: 1
+- id: landscape_agent_01
+  name: Tanvi
+  role: Landscape Agent
+  responsibilities:
+  - terrain
+  - landscape materials
+  enabled: false
+  supervisor: environment_director_01
+  model:
+    tier: standard
+  tools:
+  - read_file
+  - list_dir
+  - search_files
+  - find_symbol
+  - find_references
+  - inspect_dependencies
+  - analyze_impact
+  - analyze_call_graph
+  - knowledge_search
+  permissions:
+    read_docs: 'YES'
+    read_code: 'YES'
+    knowledge_search: 'YES'
+    git_read: 'YES'
+    unreal_read: 'YES'
+    write_code: 'NO'
+    git_commit: 'NO'
+    merge: 'NO'
+    deploy: 'NO'
+    unreal_editor_modify: 'NO'
+  avatar:
+    room: environment
+    color: '#7fb22f'
+    desk: 2
+- id: foliage_agent_01
+  name: Advait
+  role: Foliage Agent
+  responsibilities:
+  - foliage
+  - PCG scattering
+  enabled: false
+  supervisor: environment_director_01
+  model:
+    tier: standard
+  tools:
+  - read_file
+  - list_dir
+  - search_files
+  - find_symbol
+  - find_references
+  - inspect_dependencies
+  - analyze_impact
+  - analyze_call_graph
+  - knowledge_search
+  permissions:
+    read_docs: 'YES'
+    read_code: 'YES'
+    knowledge_search: 'YES'
+    git_read: 'YES'
+    unreal_read: 'YES'
+    write_code: 'NO'
+    git_commit: 'NO'
+    merge: 'NO'
+    deploy: 'NO'
+    unreal_editor_modify: 'NO'
+  avatar:
+    room: environment
+    color: '#a8d66b'
+    desk: 3
+- id: lighting_agent_01
+  name: Mira
+  role: Lighting Agent
+  responsibilities:
+  - lighting
+  - post process
+  - sky
+  enabled: false
+  supervisor: environment_director_01
+  model:
+    tier: standard
+  tools:
+  - read_file
+  - list_dir
+  - search_files
+  - find_symbol
+  - find_references
+  - inspect_dependencies
+  - analyze_impact
+  - analyze_call_graph
+  - knowledge_search
+  permissions:
+    read_docs: 'YES'
+    read_code: 'YES'
+    knowledge_search: 'YES'
+    git_read: 'YES'
+    unreal_read: 'YES'
+    write_code: 'NO'
+    git_commit: 'NO'
+    merge: 'NO'
+    deploy: 'NO'
+    unreal_editor_modify: 'NO'
+  avatar:
+    room: environment
+    color: '#74a624'
+    desk: 4
+- id: optimization_agent_01
+  name: Kabya
+  role: Optimization Agent
+  responsibilities:
+  - HLOD
+  - culling
+  - streaming budgets
+  enabled: false
+  supervisor: environment_director_01
+  model:
+    tier: standard
+  tools:
+  - read_file
+  - list_dir
+  - search_files
+  - find_symbol
+  - find_references
+  - inspect_dependencies
+  - analyze_impact
+  - analyze_call_graph
+  - knowledge_search
+  permissions:
+    read_docs: 'YES'
+    read_code: 'YES'
+    knowledge_search: 'YES'
+    git_read: 'YES'
+    unreal_read: 'YES'
+    write_code: 'NO'
+    git_commit: 'NO'
+    merge: 'NO'
+    deploy: 'NO'
+    unreal_editor_modify: 'NO'
+  avatar:
+    room: environment
+    color: '#b6e081'
+    desk: 5

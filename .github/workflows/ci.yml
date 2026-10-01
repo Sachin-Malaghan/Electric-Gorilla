@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  tests:
+    # The pipeline tests drive real git worktrees with a fake Unreal toolchain, so no engine is needed.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install
+        run: python -m pip install -e ".[dev]" pytest-timeout
+      - name: Test
+        run: python -m pytest -q --timeout 120
+        env:
+          SHUNYA_DISABLE_UNREAL: "true"
