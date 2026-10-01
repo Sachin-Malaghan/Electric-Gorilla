@@ -345,14 +345,18 @@
       const card = el("div", "card");
       const head = el("div", "row between"); head.append(el("span", "id", f.id), pill(f.paused ? "PAUSED" : f.status));
       card.append(head, el("h4", "", f.title));
+      const kids = tasks.filter((t) => t.parent_id === f.id);
+      if (kids.length) card.append(el("div", "sub", `${kids.filter((k) => k.status === "DONE").length} of ${kids.length} tasks done`));
       if (f.result && f.result.plan_summary) card.append(el("div", "sub", f.result.plan_summary));
       if (f.result && f.result.blocked_reason && f.status === "BLOCKED") card.append(el("div", "reason", f.result.blocked_reason));
       for (const c of tasks.filter((t) => t.parent_id === f.id)) {
         const row = el("div", "child");
         const h = el("div", "row between"); h.append(el("span", "id", `${c.id} · ${c.priority}`), pill(c.status));
-        row.append(h, el("div", "", c.title), el("div", "sub", `Owner: ${agentName(c.owner)} · ${c.acceptance_criteria.length} acceptance criteria · ${money(c.cost_usd)} · ${c.llm_calls} LLM calls`));
+        row.append(h, el("div", "", c.title), el("div", "sub", `${c.track} · ${agentName(c.owner)}${c.owner ? "" : " (" + c.assignee_capability.replace(/_/g, " ") + ")"} · ${c.acceptance_criteria.length} criteria`));
         if (c.result && c.result.blocked_reason && c.status === "BLOCKED") row.append(el("div", "reason", c.result.blocked_reason));
-        row.append(taskActions(c)); card.append(row);
+        if (!["DONE", "PLANNED"].includes(c.status)) row.append(taskActions(c));
+        else row.addEventListener("click", () => showTask(c.id));
+        card.append(row);
       }
       const whole = el("div", "child"); whole.append(el("div", "sub", "Whole feature")); whole.append(taskActions(f));
       card.append(whole); panel.append(card);
@@ -372,6 +376,8 @@
     body.append(el("pre", "block", t.history.map((h) => `${hhmm(h.at)}  ${(h.from_status || "").padEnd(18)} → ${h.to_status.padEnd(18)} ${h.actor}  ${h.reason}`).join("\n")));
     if (t.builds.length) { body.append(el("h4", "", "Builds")); body.append(el("pre", "block", t.builds.map((b) => `${b.id}  ${b.status.padEnd(7)} ${b.agent_id}  ${b.duration_s}s  ${b.diagnostics.map((d) => `\n    ${d.file}(${d.line}): ${d.code} ${d.message}`).join("")}`).join("\n"))); }
     if (t.tests.length) { body.append(el("h4", "", "Test runs")); body.append(el("pre", "block", t.tests.map((r) => `${r.id}  ${r.status}  ${r.passed} passed / ${r.failed} failed  filter=${r.filter}${r.results.map((x) => `\n    [${x.result}] ${x.name} ${x.messages.join("; ")}`).join("")}`).join("\n"))); }
+    const shots = t.artifacts.filter((a) => a.content_type === "image/png");
+    if (shots.length) { body.append(el("h4", "", "Evidence")); shots.forEach((a) => body.append(evidenceImage(a.id))); }
     if (t.messages.length) { body.append(el("h4", "", "Structured messages")); body.append(el("pre", "block", t.messages.map((m) => `${hhmm(m.timestamp)} ${m.type}  ${m.sender} → ${m.receiver}: ${m.summary}`).join("\n"))); }
     if (t.artifacts.length) {
       body.append(el("h4", "", "Artifacts"));
@@ -387,6 +393,11 @@
     const panel = $("#panel-approvals"); panel.replaceChildren();
     const list = (S.state && S.state.approvals) || [];
     const badge = $("#approval-count"); badge.hidden = !list.length; badge.textContent = list.length;
+    const policy = el("label", "policy");
+    const box = el("input"); box.type = "checkbox"; box.checked = (S.state && S.state.auto_approve_max_risk) === "LOW";
+    box.addEventListener("change", async () => { try { await post("/settings/approval-policy", { max_risk: box.checked ? "LOW" : "" }); } catch (e) { alert(e.message); } refreshSoon(0); });
+    policy.append(box, " Auto-approve merges whose computed risk is LOW (you still decide everything else)");
+    panel.append(policy);
     if (!list.length) { panel.append(el("p", "muted", "Nothing is waiting for your approval.")); return; }
     for (const a of list) {
       const card = el("div", "card"), ev = a.evidence || {}, qa = ev.qa || {};
@@ -400,6 +411,7 @@
       const ul = el("ul", "plain");
       (qa.criteria || []).forEach((c) => { const li = el("li"); li.append(el("span", c.met ? "check" : "cross", c.met ? "✔ " : "✖ "), c.criterion); li.append(el("div", "sub", c.evidence)); ul.append(li); });
       card.append(ul, el("div", "sub", "Files: " + (ev.changed_files || []).join(", ")));
+      (ev.images || []).forEach((id) => card.append(evidenceImage(id)));
       const comment = el("textarea", "comment"); comment.placeholder = "Comment (required to request rework)";
       const decide = (path, extra) => post(`/approvals/${a.id}/${path}`, { comment: comment.value, ...extra });
       const actions = el("div", "actions");
@@ -411,6 +423,12 @@
       );
       card.append(comment, actions); panel.append(card);
     }
+  }
+
+  function evidenceImage(id) {
+    const img = el("img", "evidence"); img.src = `/artifacts/${id}`; img.alt = "evidence screenshot";
+    img.addEventListener("click", () => { const big = el("img"); big.src = img.src; big.style.maxWidth = "100%"; openModal("Evidence", big); });
+    return img;
   }
 
   function diffView(diff) {

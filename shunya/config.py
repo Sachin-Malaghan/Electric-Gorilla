@@ -47,7 +47,9 @@ class Settings(BaseModel):
     test_timeout_s: int = 1200
 
     # Orchestration limits
-    max_concurrent_tasks: int = 2
+    max_concurrent_tasks: int = 4
+    # "" = every merge needs a human; "LOW" = merges whose computed risk is LOW are approved by policy
+    auto_approve_max_risk: str = ""
     max_build_attempts: int = 3
     max_review_rounds: int = 2
     max_qa_rounds: int = 2
@@ -119,6 +121,7 @@ def load_settings(**overrides) -> Settings:
         "SHUNYA_HOST": "host",
         "SHUNYA_PORT": "port",
         "SHUNYA_MAX_CONCURRENT_TASKS": "max_concurrent_tasks",
+        "SHUNYA_AUTO_APPROVE_MAX_RISK": "auto_approve_max_risk",
     }
     for key, field in mapping.items():
         if env.get(key):

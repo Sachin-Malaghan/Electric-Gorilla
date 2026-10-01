@@ -7,6 +7,9 @@
     { "Name": "ShunyaGame", "Type": "Runtime", "LoadingPhase": "Default" }
   ],
   "Plugins": [
-    { "Name": "ShunyaAgentBridge", "Enabled": true }
+    { "Name": "ShunyaAgentBridge", "Enabled": true },
+    { "Name": "PythonScriptPlugin", "Enabled": true, "TargetAllowList": [ "Editor" ] },
+    { "Name": "EditorScriptingUtilities", "Enabled": true, "TargetAllowList": [ "Editor" ] },
+    { "Name": "SequencerScripting", "Enabled": true, "TargetAllowList": [ "Editor" ] }
   ]
 }

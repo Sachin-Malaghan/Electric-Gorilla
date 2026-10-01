@@ -1,18 +1,18 @@
-﻿# Shunya Studio AI
+# Shunya Studio AI
 
-A virtual game-development company: AI employees (management, engineering, QA, DevOps, â€¦) develop a **real Unreal Engine project**, and a **2.5D office** shows what each of them is really doing.
+A virtual game-development company: AI employees in design, engineering, art, environment, animation, audio, QA, DevOps and documentation develop a **real Unreal Engine project**, and a **2.5D office** shows what each of them is really doing.
 
-This repository is the V1 vertical slice from the [master architecture](docs/SPEC.md):
+Spec: [docs/SPEC.md](docs/SPEC.md). How it maps to the code: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Status of the 40-step plan: [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ```
-You â”€â–¶ Studio Director â”€â–¶ Producer â”€â–¶ Unreal Programmer â”€â–¶ Reviewer â”€â–¶ Build â”€â–¶ QA â”€â–¶ You approve â”€â–¶ merge
+You -> Studio Director -> Producer -> author -> lead review -> build -> QA -> you approve -> merge
 ```
 
-Type *"Create a simple Unreal health component."* and the studio plans it in a meeting, writes the C++ in an isolated git worktree, compiles it with UnrealBuildTool, fixes its own compile errors, runs Unreal automation tests, has it reviewed and independently QA'd with evidence, and asks you to approve the merge â€” while the avatars walk to the meeting room, type, compile and test.
+The author is a programmer (C++, compiled and tested), a designer or writer (documents), or an artist (Unreal assets built in a headless editor). Nobody reviews, tests or merges their own work.
 
 ## Run it
 
-Requires Python 3.12+ and Git. Unreal Engine 5.4+ is optional (auto-detected under `C:\Program Files\Epic Games`); without it builds and tests are reported as **SKIPPED**, never as passed.
+Requires Python 3.12+ and Git. Unreal Engine 5.4+ is optional (auto-detected under `C:\Program Files\Epic Games`); without it builds, tests, content and playtests are reported as **SKIPPED**, never as passed.
 
 ```powershell
 python -m venv .venv
@@ -20,17 +20,25 @@ python -m venv .venv
 .\.venv\Scripts\shunya serve
 ```
 
-Open <http://127.0.0.1:8400>, type a feature request, and watch. Approve or reject under **Approvals**.
+Open <http://127.0.0.1:8400> and type one of the two requests the scripted agents know:
 
-Terminal-only run of the whole pipeline:
+| Request | What happens | Time with UE 5.8 |
+|---|---|---|
+| `Create a simple Unreal health component.` | 1 task, 7 employees: plan, C++, a real compile error that gets fixed, tests, review, QA, approval. | about 5 minutes |
+| `Build Orb Runner: a small arena game where the player collects glowing orbs while a drone chases them.` | 33 tasks, 31 employees in all nine departments: design documents, six C++ steps, materials, sounds, a level, lighting, a cinematic, a playtest with screenshot, a performance check, a regression run, sign-off, manual, release notes. | about an hour |
+
+Approve or reject under **Approvals**. For the 33-task run, tick *Auto-approve merges whose computed risk is LOW* there (or set `SHUNYA_AUTO_APPROVE_MAX_RISK=LOW`), otherwise every task waits for your click.
+
+Afterwards the game is in `workspace/ShunyaGame` on the `develop` branch. Play it:
+
+```powershell
+& "C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe" "$PWD\workspace\ShunyaGame\ShunyaGame.uproject" /Game/Shunya/Maps/L_Arena -game -windowed
+```
+
+Terminal-only run, and the tests (no Unreal or API key needed, a few minutes):
 
 ```powershell
 .\.venv\Scripts\shunya demo --approve
-```
-
-Tests (no Unreal or API key needed, about 2 minutes):
-
-```powershell
 .\.venv\Scripts\python -m pytest -q
 ```
 
@@ -38,33 +46,35 @@ Tests (no Unreal or API key needed, about 2 minutes):
 
 | `SHUNYA_MODEL_PROVIDER` | What runs | Cost |
 |---|---|---|
-| `scripted` (default) | A fixed screenplay for the health-component milestone drives the *real* pipeline: real worktree, real compiler, real tests, real gates. Any other request is declined with a clear message. | free |
-| `anthropic` | Real Claude agents with the same tools, permissions and budgets, for any request. Needs `ANTHROPIC_API_KEY` (or an `ant auth login` profile). | per-token, shown live in the UI |
+| `scripted` (default) | A fixed screenplay drives the *real* pipeline: real worktrees, compiler, automation tests, headless editor, playtests, reviews and gates. It knows exactly the two requests above and declines anything else. The game's code, documents and asset recipes are part of the script (`shunya/demo/`), not invented at run time. | free |
+| `anthropic` | Real Claude agents with the same tools, permissions and budgets, for any request. Needs `ANTHROPIC_API_KEY` (or an `ant auth login` profile). | per token, shown live in the UI |
 
-Copy `.env.example` to `.env` to configure. Budgets per agent live in `agents/*.yaml`, per task in `TaskBudget`.
+Copy `.env.example` to `.env` to configure. Budgets per agent live in `agents/*.yaml` (generated by `tools/dev/gen_agents.py`), per task in `TaskBudget`.
 
 ### With Unreal Editor open (optional)
 
-Open `workspace/ShunyaGame/ShunyaGame.uproject` in the editor. The `ShunyaAgentBridge` plugin starts a localhost endpoint (`http://127.0.0.1:30777/shunya`, token in `Config/DefaultEngine.ini`) and the studio's Unreal tools (`get_editor_state`, `find_actor`, `spawn_actor`, `start_pie`, â€¦) and `/unreal/*` API start working. Compiling and testing do **not** need the editor open.
+Open `workspace/ShunyaGame/ShunyaGame.uproject` in the editor. The `ShunyaAgentBridge` plugin starts a localhost endpoint (`http://127.0.0.1:30777/shunya`, token in `Config/DefaultEngine.ini`) and the studio's live-editor tools (`get_editor_state`, `find_actor`, `spawn_actor`, `start_pie`, ...) and `/unreal/*` API start working. Compiling, testing, content creation and playtests do **not** need the editor open.
 
 ## What is in the box
 
 | Path | What |
 |---|---|
 | `shunya/core/agent_runtime` | The bounded agent loop: iteration / time / token / cost / tool-call limits, repeated-error detection, pause, cancel, escalation |
-| `shunya/core/orchestration` | The status-driven workflow, planning meetings, approvals with computed risk, structured report schemas |
+| `shunya/core/orchestration` | The status-driven workflow for the three task tracks, planning meetings, approvals with computed risk, report schemas |
 | `shunya/core/task_engine` | Task state machine |
 | `shunya/core/permissions` | Capability checks and the workspace sandbox (path validation, protected files) |
 | `shunya/core/models` | `IModelProvider`, Claude provider, scripted provider, model routing, pricing |
 | `shunya/core/persistence`, `events`, `memory.py`, `artifacts.py` | SQL store + append-only event log, event bus (in-memory / Redis), memory kinds, versioned artifacts |
-| `shunya/tools` | Typed tools: files, git worktrees, C++ index, compile, automation tests, Unreal bridge. No shell. |
+| `shunya/tools` | 40 typed tools: files and documents, git worktrees, C++ index, compile, automation tests, content jobs, playtests, live-editor bridge. No shell. |
+| `shunya/tools/unreal_scripts/apply_content.py` | The one script that runs inside the editor: builds, validates and promotes assets from typed jobs |
 | `shunya/knowledge` | C++ symbol index, dependency / call graph, hybrid retrieval |
 | `shunya/bridge`, `unreal/ShunyaGame/Plugins/ShunyaAgentBridge` | Unreal Bridge client and the editor plugin |
 | `shunya/api`, `apps/studio-ui` | REST + WebSocket API and the 2.5D studio client |
-| `agents/`, `prompts/` | 47 employee definitions (7 active in V1) and layered prompts |
+| `shunya/demo` | The two screenplays for the scripted provider, including Orb Runner's code, documents and content recipes |
+| `agents/`, `prompts/` | 47 employee definitions (38 active) and layered prompts |
 | `unreal/ShunyaGame` | Template of the game project the studio develops |
-| `tests/` | 50 tests: state machine, sandbox, runtime limits, full pipeline, restart recovery, API |
-| `docs/` | [Architecture](docs/ARCHITECTURE.md) Â· [Roadmap](docs/ROADMAP.md) Â· [ADRs](docs/adr) Â· [original spec](docs/SPEC.md) |
+| `tests/` | State machine, sandbox, runtime limits, the pipelines for both requests, restart recovery, API |
+| `docs/` | Architecture, roadmap, ADRs, the original spec |
 
 Runtime state lives in `data/` (database, artifacts) and `workspace/` (the working game repo and task worktrees); both are git-ignored. Delete them to start from a clean studio.
 
@@ -72,15 +82,16 @@ Runtime state lives in `data/` (database, artifacts) and `workspace/` (the worki
 
 Verified on the development machine (Windows 10, UE 5.8, Python 3.13):
 
-- The scripted pipeline end to end with the **real** engine: real compile error caught, parsed and fixed; real build; 5/5 real Unreal automation tests run by the programmer and again by QA; approval; merge into `develop`.
+- The health-component request end to end against the **real** engine, through the office UI.
+- Orb Runner as a game, outside the pipeline: every C++ step compiles on its own, its 22 automation tests pass, the assets are created by the headless editor, and the QA bot wins a match on `L_Arena` with a screenshot captured.
+- Orb Runner through the pipeline with the real engine: the first 20 of 33 tasks (all documents, materials, sounds, music, and the first three code steps) were built, reviewed, validated and merged. **The run was then cancelled, so the full 33-task run has not completed against the real engine**; it completes in the automated tests, which use stand-ins for the engine.
 - The `ShunyaGame` template and both `ShunyaAgentBridge` modules compile on UE 5.8.
-- The automated test suite.
-- The 2.5D client against a live run.
+- The automated test suite (with stand-ins for the engine).
 
 Not yet exercised:
 
-- **Real Claude agents end to end** â€” the provider is implemented against the current SDK but no paid run was made. Expect prompt tuning.
-- **The bridge plugin's HTTP routes against a running editor** â€” it compiles; the routes have not been called live.
-- **Docker Compose / PostgreSQL / Redis** â€” written, not run (no Docker on the dev machine). SQLite + in-process bus is what has been tested.
+- **Real Claude agents.** The provider is implemented and its request format is tested against a stub, but no paid run was made (no API key on the dev machine). In the scripted runs the employees follow a script; they do not design or code anything themselves. Expect prompt tuning on the first real run.
+- **The bridge plugin's HTTP routes against a running editor.** It compiles; the routes have not been called live.
+- **Docker Compose / PostgreSQL / Redis.** Written, not run (no Docker on the dev machine). SQLite + in-process bus is what has been tested.
 
-See [docs/ROADMAP.md](docs/ROADMAP.md) for the 40-step plan and where each step stands.
+Nine roles have no real work in a game this small and stay as empty desks: rigging, VFX, landscape, foliage, optimisation, graphics programming, networking, CI, crash investigation. Art and audio are procedural stand-ins (flat-colour materials, a grid texture, synthesised tones), not generated art.

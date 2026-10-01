@@ -53,6 +53,8 @@ class GitService:
     def __init__(self, repo: Path, worktrees_dir: Path):
         self.repo = repo
         self.worktrees_dir = worktrees_dir
+        # operations on the shared repository (worktree add/remove, merges) must not interleave
+        self._repo_lock = asyncio.Lock()
 
     async def ensure_repo(self, template: Path | None = None) -> None:
         """Create the game repository from the template on first run (main + develop)."""
@@ -81,19 +83,21 @@ class GitService:
         if (path / ".git").exists():
             return branch, path
         self.worktrees_dir.mkdir(parents=True, exist_ok=True)
-        await git(self.repo, "worktree", "prune")
-        exists = (await git(self.repo, "rev-parse", "--verify", "--quiet", branch, check=False)).code == 0
-        if exists:
-            await git(self.repo, "worktree", "add", str(path), branch)
-        else:
-            await git(self.repo, "worktree", "add", "-b", branch, str(path), DEVELOP)
+        async with self._repo_lock:
+            await git(self.repo, "worktree", "prune")
+            exists = (await git(self.repo, "rev-parse", "--verify", "--quiet", branch, check=False)).code == 0
+            if exists:
+                await git(self.repo, "worktree", "add", str(path), branch)
+            else:
+                await git(self.repo, "worktree", "add", "-b", branch, str(path), DEVELOP)
         return branch, path
 
     async def remove_worktree(self, task_id: str) -> None:
         path = self.worktrees_dir / task_id
-        if path.exists():
-            await git(self.repo, "worktree", "remove", "--force", str(path), check=False)
-        await git(self.repo, "worktree", "prune", check=False)
+        async with self._repo_lock:
+            if path.exists():
+                await git(self.repo, "worktree", "remove", "--force", str(path), check=False)
+            await git(self.repo, "worktree", "prune", check=False)
 
     async def discard_protected_changes(self, worktree: Path) -> list[str]:
         """Revert changes to protected paths (Config/, *.Build.cs, *.uproject, ...).
@@ -127,9 +131,13 @@ class GitService:
         await git(worktree, "add", "-A")
 
     async def diff(self, worktree: Path, *, stat: bool = False, path: str | None = None) -> str:
-        """Diff of the task's work (committed + uncommitted) against develop."""
+        """Diff of the task's own work (committed + uncommitted) since it branched from develop.
+
+        Compared against the merge base, not develop's tip: other tasks merging meanwhile
+        must not show up in this task's diff as deletions.
+        """
         await self.stage_all(worktree)
-        args = ["diff", "--cached", "--no-color", DEVELOP]
+        args = ["diff", "--cached", "--no-color", await self.base(worktree)]
         if stat:
             args.insert(3, "--stat")
         if path:
@@ -138,7 +146,7 @@ class GitService:
 
     async def changed_files(self, worktree: Path) -> list[str]:
         await self.stage_all(worktree)
-        out = (await git(worktree, "diff", "--cached", "--name-only", DEVELOP)).out
+        out = (await git(worktree, "diff", "--cached", "--name-only", await self.base(worktree))).out
         return [line.strip() for line in out.splitlines() if line.strip()]
 
     async def commit_all(self, worktree: Path, message: str, *, author: str) -> str | None:
@@ -148,19 +156,23 @@ class GitService:
         await git(worktree, "commit", "-m", message, "--author", f"{author} <{author}@agents.shunya.local>")
         return await self.head(worktree)
 
+    async def base(self, worktree: Path) -> str:
+        return (await git(worktree, "merge-base", DEVELOP, "HEAD")).out.strip()
+
     async def head(self, cwd: Path) -> str:
         return (await git(cwd, "rev-parse", "HEAD")).out.strip()
 
     async def merge_to_develop(self, task_id: str, message: str) -> str:
         branch = self.branch_for(task_id)
-        current = (await git(self.repo, "rev-parse", "--abbrev-ref", "HEAD")).out.strip()
-        if current != DEVELOP:
-            await git(self.repo, "checkout", DEVELOP)
-        res = await git(self.repo, "merge", "--no-ff", branch, "-m", message, check=False)
-        if res.code != 0:
-            await git(self.repo, "merge", "--abort", check=False)
-            raise GitError(f"merge of {branch} into develop failed: {res.err or res.out}")
-        return await self.head(self.repo)
+        async with self._repo_lock:
+            current = (await git(self.repo, "rev-parse", "--abbrev-ref", "HEAD")).out.strip()
+            if current != DEVELOP:
+                await git(self.repo, "checkout", DEVELOP)
+            res = await git(self.repo, "merge", "--no-ff", branch, "-m", message, check=False)
+            if res.code != 0:
+                await git(self.repo, "merge", "--abort", check=False)
+                raise GitError(f"merge of {branch} into develop failed: {res.err or res.out}")
+            return await self.head(self.repo)
 
     async def log(self, ref: str = DEVELOP, n: int = 20) -> list[dict[str, str]]:
         out = (await git(self.repo, "log", ref, f"-{n}", "--pretty=format:%H%x09%an%x09%ad%x09%s", "--date=iso")).out

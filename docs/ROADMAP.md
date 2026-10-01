@@ -13,10 +13,10 @@ Legend: ✅ built and tested · 🟡 built, not fully exercised (see note) · �
 | 7 | Safe filesystem tools | ✅ | |
 | 8 | Git tools and isolated task workspaces | ✅ | |
 | 9 | Task state machine | ✅ | |
-| 10 | Studio Director / Producer basics + one Programmer | ✅ | Two programmers |
+| 10 | Studio Director / Producer basics + one Programmer | ✅ | Six code-writing roles |
 | 11 | Structured manager-to-worker delegation | ✅ | `AgentMessage` handoffs |
 | 12 | WebSocket event stream | ✅ | Replay from any sequence number |
-| 13 | Crude 2.5D client with two employees | ✅ | Web client, seven active employees |
+| 13 | Crude 2.5D client with two employees | ✅ | Web client, 38 active employees |
 | 14 | Bind real backend states to avatars | ✅ | |
 | 15 | Unreal Bridge | 🟡 | Client + tools written; not called against a live editor |
 | 16 | ShunyaAgentBridge editor plugin | 🟡 | Compiles on UE 5.8; HTTP routes not exercised live |
@@ -29,12 +29,12 @@ Legend: ✅ built and tested · 🟡 built, not fully exercised (see note) · �
 | 23 | Document / code RAG | ✅ | Hashing embedder; swap for a real one behind `IEmbedder` |
 | 24 | C++ symbol index | ✅ | Regex-based |
 | 25 | Dependency / call graph | ✅ | Approximate call graph |
-| 26 | Producer task decomposition | 🟡 | Multi-task plans with dependencies supported and scheduled; only single-task plans exercised |
-| 27 | Design department | ⬜ | Roles defined, disabled |
-| 28 | Environment department | ⬜ | Needs `unreal_editor_modify` roles + bridge commands in anger |
-| 29 | Art pipeline | ⬜ | Needs `Content/AI_Staging` promotion flow |
-| 30 | Animation and Audio | ⬜ | |
-| 31 | Performance testing | ⬜ | Telemetry subsystem exists in the plugin |
+| 26 | Producer task decomposition | ✅ | 33-task dependency graph across three tracks (scripted plan) |
+| 27 | Design department | 🟡 | Six roles write and review design documents (`doc` track); scripted content only so far |
+| 28 | Environment department | 🟡 | World builder and lighting artist build levels through typed content jobs in a headless editor; landscape, foliage, optimisation offline |
+| 29 | Art pipeline | 🟡 | Staging -> lead review -> validation -> promotion works; assets are procedural stand-ins (flat materials, grid texture), no external generators; VFX offline |
+| 30 | Animation and Audio | 🟡 | Procedural motion in C++, a camera Level Sequence, synthesised sounds and a music loop; no skeletal animation, rigging offline |
+| 31 | Performance testing | 🟡 | `run_playtest` measures average FPS and worst frame against a budget in a real game launch; no profiling breakdown |
 | 32 | Approval system | ✅ | |
 | 33 | Budget / cost system | ✅ | Per agent run and per task; ledger at `/costs` |
 | 34 | Permissions and guardrails | ✅ | |
@@ -51,8 +51,8 @@ All seventeen are covered by tests in `tests/test_pipeline.py`, `tests/test_runt
 
 ## Suggested next steps, in order
 
-1. **Run the milestone with real agents** (`SHUNYA_MODEL_PROVIDER=anthropic`), read the traces, tune `prompts/`. Start with a low `cost_budget` in `agents/engineering/engineering.yaml`.
+1. **Run the health milestone, then Orb Runner, with real agents** (`SHUNYA_MODEL_PROVIDER=anthropic`), read the traces, tune `prompts/`. Start with a low `cost_budget` in `agents/engineering/engineering.yaml`.
 2. Exercise the bridge plugin against a running editor; add a QA step that plays the feature in PIE and captures telemetry.
-3. A second milestone that needs two dependent tasks, to exercise the task graph for real.
-4. Bring up PostgreSQL + Redis with the compose file; move store calls off the event loop.
-5. Design department (step 27): the Lead Designer produces a specification artifact the Producer plans from.
+3. Bring up PostgreSQL + Redis with the compose file; move store calls off the event loop.
+4. Replace the procedural stand-ins with real generators behind the same content tools (image, mesh, audio), and add the missing job kinds (Niagara, skeletal animation, landscape).
+5. Let the Producer plan from the design documents: today design tasks and build tasks are planned together, up front.

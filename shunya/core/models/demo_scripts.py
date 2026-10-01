@@ -283,7 +283,7 @@ def _is_health(text: str) -> bool:
 
 def _decline() -> None:
     raise ModelProviderError(
-        "The scripted demo provider only knows the 'health component' milestone. "
+        "The scripted demo provider only knows two requests: the 'health component' milestone and the 'Orb Runner' game. "
         "Set SHUNYA_MODEL_PROVIDER=anthropic to have real agents handle any request."
     )
 
@@ -462,10 +462,28 @@ def qa(ctx: ScriptContext) -> ScriptStep:
 
 
 def demo_scripts(*, inject_compile_error: bool = True) -> dict[str, Script]:
-    return {
+    """Scripts for the two requests the scripted provider knows.
+
+    The Orb Runner screenplay (all departments) is tried first; anything it does not
+    recognise falls through to the health-component milestone scripts below.
+    """
+    from shunya.demo.orb_runner import screenplay
+
+    health: dict[str, Script] = {
         "director": director,
         "producer": producer,
         "programmer": make_programmer(inject_compile_error),
         "reviewer": reviewer,
         "qa": qa,
     }
+
+    def universal(ctx: ScriptContext) -> ScriptStep:
+        step = screenplay.script(ctx)
+        if step is not None:
+            return step
+        fallback = health.get(ctx.capability)
+        if fallback is None:
+            _decline()
+        return fallback(ctx)  # type: ignore[misc]
+
+    return {"*": universal}

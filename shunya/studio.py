@@ -34,6 +34,14 @@ from shunya.shared.schemas import (
 from shunya.tools.git_tools import GitService
 from shunya.tools.registry import build_registry
 from shunya.tools.services import ToolServices
+from shunya.tools.unreal_content import (
+    IContentService,
+    IPlaytestService,
+    UnavailableContentService,
+    UnavailablePlaytestService,
+    UnrealContentService,
+    UnrealPlaytestService,
+)
 from shunya.tools.unreal_build import (
     IBuildService,
     ITestService,
@@ -56,6 +64,8 @@ class Studio:
         tests: ITestService | None = None,
         bus: IEventBus | None = None,
         bridge: IUnrealBridge | None = None,
+        content: IContentService | None = None,
+        playtest: IPlaytestService | None = None,
     ):
         self.settings = settings or load_settings()
         s = self.settings
@@ -81,9 +91,13 @@ class Studio:
                 else UnavailableTestService()
             )
         self.bridge = bridge or HttpUnrealBridge(s.bridge_url, s.bridge_token)
+        if content is None:
+            content = UnrealContentService(s.engine_root, s.game_project_name) if s.unreal_available else UnavailableContentService()
+        if playtest is None:
+            playtest = UnrealPlaytestService(s.engine_root, s.game_project_name) if s.unreal_available else UnavailablePlaytestService()
         self.services = ToolServices(
             settings=s, store=self.store, bus=self.bus, artifacts=self.artifacts, git=self.git, build=build, tests=tests,
-            bridge=self.bridge,
+            bridge=self.bridge, content=content, playtest=playtest,
         )
         self.permissions = PermissionEngine()
         self.tools = build_registry(self.permissions)
@@ -174,6 +188,7 @@ class Studio:
             "project": self.store.projects.get("shunya").model_dump() if self.store.projects.get("shunya") else None,
             "provider": self.settings.model_provider,
             "unreal_available": self.settings.unreal_available,
+            "auto_approve_max_risk": self.settings.auto_approve_max_risk,
             "last_seq": self.store.events.last_seq(),
             "agents": agents,
             "tasks": [t.model_dump(mode="json", exclude={"history"}) for t in tasks],

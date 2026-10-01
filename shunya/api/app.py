@@ -39,6 +39,10 @@ class Decision(BaseModel):
     rework: bool = False
 
 
+class ApprovalPolicy(BaseModel):
+    max_risk: str = Field(default="", pattern="^(|LOW|MEDIUM)$", description="Merges at or below this computed risk are approved by policy; empty = always ask")
+
+
 class RetryBody(BaseModel):
     note: str = ""
 
@@ -333,6 +337,22 @@ def create_app(studio: Studio | None = None, settings: Settings | None = None) -
     @app.post("/approvals/{approval_id}/reject")
     async def reject(approval_id: str, body: Decision | None = None):
         return await _decide(approval_id, False, body or Decision())
+
+    @app.get("/settings/approval-policy")
+    async def get_approval_policy():
+        return {"max_risk": st().settings.auto_approve_max_risk}
+
+    @app.post("/settings/approval-policy")
+    async def set_approval_policy(body: ApprovalPolicy):
+        """The studio owner delegates low-risk merges to policy. Also decides anything already waiting within the limit."""
+        s = st()
+        s.settings.auto_approve_max_risk = body.max_risk
+        approved = []
+        for a in s.approvals.pending():
+            if s.orchestrator.approval_policy_allows(a.risk_level):
+                await s.approvals.decide(a.id, granted=True, decided_by="policy", comment=f"approved by policy: computed risk {a.risk_level} is within the auto-approve limit")
+                approved.append(a.id)
+        return {"max_risk": body.max_risk, "approved_now": approved}
 
     # ------------------------------------------------------------------ events
 

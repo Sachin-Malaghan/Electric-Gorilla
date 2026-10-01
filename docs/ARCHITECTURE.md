@@ -83,6 +83,29 @@ One Python package (`shunya`) holds the spec's `core/`, `tools/`, `knowledge/`, 
 
 10. **One task object per running pipeline.** API calls mutate the same in-memory task the pipeline saves, so a pause or a guidance note cannot be overwritten by the pipeline's next save.
 
+## All departments: three tracks through one pipeline
+
+Every task carries a `track`, chosen by the Producer, and the same status-driven loop handles all three:
+
+| Step | `code` | `doc` | `content` |
+|---|---|---|---|
+| Author | a programmer (C++, compile, tests) | a designer / lead / writer (`create_doc`), sometimes after a verification run | an artist (`queue_*` jobs, then `apply_content`) |
+| Review | Technical Director | the department lead named in the plan | the department lead named in the plan |
+| Build | Build Engineer compiles | not applicable | not applicable |
+| QA | QA runs the automation tests | code checks the document exists and, if the task demands one, that a passing verification run is recorded | QA runs `validate_content` in the editor |
+| Before approval | - | - | assets are promoted from `/Game/AI_Staging` to `/Game/Shunya` |
+| Approval | human, or policy when the computed risk is LOW and the owner enabled that | same | same |
+
+**Content tools (spec 40, 41).** Art, environment, animation and audio agents never send Python to the editor. They queue typed jobs (texture, material, sound, level, level additions, sequence) that are saved as JSON recipes under `ContentJobs/<task>/` in the worktree, and one headless editor session runs the studio-owned `shunya/tools/unreal_scripts/apply_content.py` with those jobs as data. Textures, images and sounds are generated procedurally by `shunya/tools/content/generators.py` (pure standard library) - these stand in for external generators and sit behind the same tools. Assets land in `/Game/AI_Staging`; the lead reviews the recipes, QA validates the assets, and only then does the orchestrator promote them. Edits to an existing asset (a lighting pass on a level) are made in place on the task branch - the branch is the isolation.
+
+**Playtests as evidence.** `run_playtest` launches the real game with `-ShunyaAutoPlay`; the game's own QA subsystem plays the match, captures a screenshot and logs one `ShunyaPlaytest:` JSON line. The tool records the result as a verification run (so the same evidence gate applies) and stores the screenshot as an artifact that appears on the approval.
+
+**Build reuse.** Worktrees whose code is identical to `develop` copy the develop checkout's binaries instead of compiling (`ToolServices.ensure_built`, keyed by a hash of the sources), so content and QA tasks do not pay for a compile each.
+
+**Approval policy.** `SHUNYA_AUTO_APPROVE_MAX_RISK=LOW` (or the checkbox in the Approvals tab) lets policy approve merges whose computed risk is LOW. Anything else still waits for the owner. A 33-task feature would otherwise need 33 clicks.
+
+**The Orb Runner screenplay** (`shunya/demo/orb_runner/`) is the scripted provider's second request: 33 tasks that give 31 employees across all nine departments real work - design documents, C++ in six steps, materials, sounds, a level, lighting, a cinematic, a playtest, a performance check, a regression run, a sign-off, a manual and release notes. Nine roles have nothing real to do in a game this small and stay offline (rigging, VFX, landscape, foliage, optimisation, graphics, networking, CI, crash investigation).
+
 ## Known limits of V1
 
 - The C++ index is regex-based. It understands Unreal's macros and conventions well enough for navigation and impact hints; it is not a compiler. `CppIndex` is the seam for libclang or tree-sitter.

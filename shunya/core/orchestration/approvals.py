@@ -23,6 +23,8 @@ def assess_risk(*, changed_files: list[str], diff: str, build_status: str, tests
         if order.index(to) > order.index(level):
             level = to
 
+    # recipes and generated source files describe the same assets as the .uasset files next to them
+    counted = [f for f in changed_files if not f.startswith(("ContentJobs/", "SourceArt/"))]
     protected = [f for f in changed_files if any(fnmatch.fnmatch(f, g) for g in DEFAULT_PROTECTED_GLOBS)]
     if protected:
         bump(RiskLevel.HIGH, f"project configuration / dependency files changed: {', '.join(protected[:5])}")
@@ -30,13 +32,13 @@ def assess_risk(*, changed_files: list[str], diff: str, build_status: str, tests
     if deleted:
         bump(RiskLevel.HIGH, f"{deleted} file(s) deleted")
     changed_lines = sum(1 for l in diff.splitlines() if (l.startswith("+") or l.startswith("-")) and not l.startswith(("+++", "---")))
-    if len(changed_files) > 15 or changed_lines > 800:
-        bump(RiskLevel.HIGH, f"large change: {len(changed_files)} files, {changed_lines} lines")
-    elif len(changed_files) > 6 or changed_lines > 300:
-        bump(RiskLevel.MEDIUM, f"medium-sized change: {len(changed_files)} files, {changed_lines} lines")
-    if build_status != "PASSED":
+    if len(counted) > 15 or changed_lines > 1500:
+        bump(RiskLevel.HIGH, f"large change: {len(counted)} files, {changed_lines} lines")
+    elif len(counted) > 8 or changed_lines > 600:
+        bump(RiskLevel.MEDIUM, f"medium-sized change: {len(counted)} files, {changed_lines} lines")
+    if build_status not in ("PASSED", "NOT_APPLICABLE"):
         bump(RiskLevel.HIGH, f"build not verified (status: {build_status})")
-    if tests_status != "PASSED":
+    if tests_status not in ("PASSED", "NOT_APPLICABLE"):
         bump(RiskLevel.HIGH, f"automated tests not verified (status: {tests_status})")
     if not reasons:
         reasons.append("small, compiled, tested change confined to agent-writable source folders")

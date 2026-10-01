@@ -41,6 +41,11 @@ class ScriptContext:
     exchanges: list[ToolExchange] = field(default_factory=list)
 
     @property
+    def capability(self) -> str:
+        m = re.search(r"\[capability:(\w+)\]", self.system)
+        return m.group(1) if m else ""
+
+    @property
     def brief(self) -> str:
         return self.messages[0].text if self.messages else ""
 
@@ -107,6 +112,8 @@ class ScriptedProvider(IModelProvider):
         m = re.search(r"\[capability:(\w+)\]", system)
         if m and m.group(1) in self.scripts:
             return self.scripts[m.group(1)]
+        if "*" in self.scripts:  # one script that handles every role
+            return self.scripts["*"]
         raise ModelProviderError(f"no script for agent '{agent_id}'")
 
     async def generate(self, *, system, messages, tools, config, agent_id="") -> ModelResponse:

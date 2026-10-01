@@ -174,4 +174,27 @@ class PatchFile(Tool):
         return ToolResult(content=f"Patched {rel} ({count if args.replace_all else 1} replacement)", summary=f"Modified {rel}", files_written=[rel])
 
 
+class CreateDoc(CreateFile):
+    name = "create_doc"
+    description = "Create (or overwrite with overwrite=true) a document under Docs/ in the task worktree - design docs, briefs, reports."
+    required_permissions = ["write_docs"]
+
+    async def run(self, ctx: ToolContext, args: CreateFile.Input) -> ToolResult:
+        if not args.path.replace("\\", "/").startswith("Docs/"):
+            raise ToolError("create_doc only writes under Docs/")
+        return await super().run(ctx, args)
+
+
+class PatchDoc(PatchFile):
+    name = "patch_doc"
+    description = "Edit a document under Docs/ by exact string replacement."
+    required_permissions = ["write_docs"]
+
+    async def run(self, ctx: ToolContext, args: PatchFile.Input) -> ToolResult:
+        if not args.path.replace("\\", "/").startswith("Docs/"):
+            raise ToolError("patch_doc only edits files under Docs/")
+        return await super().run(ctx, args)
+
+
 FILE_TOOLS = [ReadFile, ListDir, SearchFiles, CreateFile, PatchFile]
+DOC_TOOLS = [CreateDoc, PatchDoc]

@@ -32,7 +32,7 @@ def test_api_end_to_end(settings):
     studio = Studio(settings, provider=ScriptedProvider(demo_scripts(inject_compile_error=True)), build=FakeBuildService(), tests=FakeTestService())
     with TestClient(create_app(studio)) as client:
         state = client.get("/studio/state").json()
-        assert state["studio"] == "SHUNYA STUDIOS" and state["stats"]["agents"] == 7
+        assert state["studio"] == "SHUNYA STUDIOS" and state["stats"]["agents"] == 38
         offline = [a for a in state["agents"] if not a["enabled"]]
         assert offline and all(a["state"] == "OFFLINE" for a in offline)  # defined but unimplemented roles are empty desks
 

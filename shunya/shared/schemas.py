@@ -117,6 +117,7 @@ class AgentProfile(BaseModel):
     escalation_policy: EscalationPolicy = Field(default_factory=EscalationPolicy)
     validation_policy: ValidationPolicy = Field(default_factory=ValidationPolicy)
     enabled: bool = False  # disabled definitions exist in the org chart but have no desk occupant (OFFLINE)
+    prompts: list[str] = Field(default_factory=list)  # extra role prompt layers, e.g. doc_author, lead_reviewer
     capability: str | None = None  # pipeline capability this agent fills: producer, programmer, reviewer, qa, build ...
     avatar: Avatar = Field(default_factory=Avatar)
 
@@ -208,6 +209,8 @@ class Task(BaseModel):
     dependencies: list[str] = Field(default_factory=list)
     acceptance_criteria: list[str] = Field(default_factory=list)
     assignee_capability: str = "programmer"
+    review_capability: str = "reviewer"
+    track: str = "code"  # code | doc | content - which pipeline variant handles this task
     test_filter: str = ""  # Unreal automation test path prefix that verifies this task
     branch: str | None = None
     worktree: str | None = None

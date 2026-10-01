@@ -27,6 +27,7 @@ class PromptComposer:
             self._read("base.md"),
             self._read("company.md"),
             self._read(f"departments/{agent.department}.md"),
+            *[self._read(f"roles/{name}.md") for name in agent.prompts if name != role_key],
             self._read(f"roles/{role_key}.md"),
             self._read(f"projects/{self.project}.md"),
         ]

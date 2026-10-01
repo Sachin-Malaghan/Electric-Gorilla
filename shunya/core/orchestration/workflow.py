@@ -307,6 +307,17 @@ class Orchestrator:
 
         return WorkspaceSandbox(Path(task.worktree), writable_globs=agent.write_globs if writable else [], isolated=True)  # type: ignore[arg-type]
 
+    def _roster(self) -> str:
+        groups: dict[str, list[AgentProfile]] = {}
+        for p in self.registry.all():
+            if p.enabled and p.capability:
+                groups.setdefault(p.capability, []).append(p)
+        lines = []
+        for cap, people in sorted(groups.items(), key=lambda kv: (kv[1][0].department, kv[0])):
+            first = people[0]
+            lines.append(f"- `{cap}` ({first.department}): {first.role} - {', '.join(first.responsibilities[:4])}")
+        return "\n".join(lines)
+
     def _knowledge(self, root, query: str, max_chars: int = 7000) -> str:
         try:
             results = self.services.retriever_for(root).search(query, limit=6, max_chars=max_chars)
@@ -407,9 +418,14 @@ class Orchestrator:
                             ("Director's brief", _bullets(brief)),
                             ("Engineering concerns to address in this revision", "\n".join(f"- {c}" for c in concerns)),
                             ("Relevant project knowledge", knowledge),
-                            ("Your job", "Break this feature into the smallest set of typed tasks an Unreal programmer can implement and QA can verify. "
-                             "Every task needs concrete, testable acceptance criteria and a test_filter under 'ShunyaGame.'. "
-                             "Prefer one task when the feature is small. Submit a FeaturePlan."),
+                            ("Studio roster (capabilities you can assign work to)", self._roster()),
+                            ("Your job", "Break this feature into the smallest set of typed tasks the studio can deliver and verify. "
+                             "Each task has a track: `code` (C++, compiled and tested - give a test_filter under 'ShunyaGame.'), "
+                             "`doc` (documents under Docs/ - leave test_filter empty unless the author must run a playtest or the test suite), or "
+                             "`content` (Unreal assets made with the content tools - leave test_filter empty). "
+                             "Pick assignee_capability and reviewer_capability from the roster; the reviewer is a lead and never the assignee. "
+                             "Order work with depends_on: design before the work it specifies, code before content that uses its classes, everything before QA. "
+                             "Every task needs concrete acceptance criteria. Prefer one task when the feature is small. Submit a FeaturePlan."),
                         ),
                     )
                 )
@@ -462,7 +478,11 @@ class Orchestrator:
             task = Task(
                 id=self.tasks.repo.next_id("GAME"), type=TaskType(p.type), title=p.title, description=p.description,
                 created_by=producer.id, priority=Priority(p.priority), parent_id=feature.id, acceptance_criteria=p.acceptance_criteria,
-                test_filter=p.test_filter if p.test_filter.startswith("ShunyaGame") else "ShunyaGame",
+                track=p.track,
+                # an unknown capability falls back to the engineering defaults rather than stalling the task
+                assignee_capability=p.assignee_capability if self.registry.with_capability(p.assignee_capability) else "programmer",
+                review_capability=p.reviewer_capability if self.registry.with_capability(p.reviewer_capability) else "reviewer",
+                test_filter=(p.test_filter if p.test_filter.startswith("ShunyaGame") else "ShunyaGame") if p.track == "code" else p.test_filter,
                 trace_id=feature.trace_id,
             )
             if concerns:
@@ -576,44 +596,61 @@ class Orchestrator:
         episodic = self.memory.render(self.memory.recall(query, kind=MemoryKind.EPISODIC, agent_id=owner.id, limit=3), 1500)
         pitfalls = self.memory.render(self.memory.recall(query, kind=MemoryKind.OPERATIONAL, limit=3), 1500)
         standards = self.memory.render(self.memory.recall(query, kind=MemoryKind.PROJECT, limit=6), 2500)
+        if task.track == "content":
+            workspace_extra = ("You create Unreal assets with the content tools: queue every job, then call apply_content once. "
+                               "Assets are created under /Game/AI_Staging and promoted to /Game/Shunya only after review and validation.")
+            done = ("1. Read the brief / style documents this task depends on (under Docs/).\n"
+                    "2. Queue the jobs, then apply_content must return CONTENT APPLIED with every job OK.\n"
+                    "3. Submit a WorkReport listing the assets. Be honest: if a job failed and you could not fix it, set blocked.")
+            output_model: type = r.WorkReport
+        elif task.track == "doc":
+            workspace_extra = "You write documents under Docs/ with create_doc / patch_doc." + (
+                f" This task also requires a verification run (`{task.test_filter}`): run it with your tools and report its real results." if task.test_filter else "")
+            done = ("1. Read the documents and code this one builds on.\n"
+                    "2. Write the document(s): concrete, specific values, no filler. Other employees will act on it literally.\n"
+                    "3. Submit a WorkReport. If a required verification run did not pass, say so - do not write the report as if it had.")
+            output_model = r.WorkReport
+        else:
+            workspace_extra = f"Automation tests for this task must live under the test path prefix `{task.test_filter}`."
+            done = ("1. Inspect the existing code before writing.\n"
+                    "2. Implement the change and automation tests covering every acceptance criterion.\n"
+                    "3. compile_project must return PASSED.\n"
+                    "4. run_automation_tests with the task's test filter must return PASSED.\n"
+                    "5. Submit an ImplementationReport. Be honest: set compiled/tests_passed from the actual last tool results.")
+            output_model = r.ImplementationReport
         brief = _sections(
             ("Task", f"{task.id}: {task.title}\n\n{task.description}"),
             ("Acceptance criteria", "\n".join(f"{i + 1}. {c}" for i, c in enumerate(task.acceptance_criteria))),
             ("Workspace", (
                 f"You are working in an isolated git worktree on branch `{task.branch}` (never `main`). Paths are relative to the Unreal project root.\n"
                 f"Writable areas: {', '.join(owner.write_globs)}. Project configuration, *.Build.cs, *.Target.cs, *.uproject and Config/ are protected.\n"
-                f"Automation tests for this task must live under the test path prefix `{task.test_filter}`."
+                f"{workspace_extra}"
             )),
             ("Feedback you must address (from review / build / QA / humans)", feedback),
             ("Project standards and decisions", standards),
             ("Relevant knowledge (retrieved; may be incomplete - use your tools to look further)", self._knowledge(worktree, query)),
             ("Your past experience on similar work", episodic),
             ("Known build/test pitfalls in this project", pitfalls),
-            ("Definition of done", (
-                "1. Inspect the existing code before writing.\n"
-                "2. Implement the change and automation tests covering every acceptance criterion.\n"
-                "3. compile_project must return PASSED.\n"
-                "4. run_automation_tests with the task's test filter must return PASSED.\n"
-                "5. Submit an ImplementationReport. Be honest: set compiled/tests_passed from the actual last tool results."
-            )),
+            ("Definition of done", done),
         )
+        purpose = {"code": "implement task", "doc": "write document", "content": "create content"}.get(task.track, "implement task")
         out = await self._run_agent(
-            RunRequest(agent=owner, purpose="implement task", brief=brief, output_model=r.ImplementationReport, control=self.controls.for_run(task.id, owner.id),
+            RunRequest(agent=owner, purpose=purpose, brief=brief, output_model=output_model, control=self.controls.for_run(task.id, owner.id),
                        task=task, sandbox=self._sandbox(task, owner, writable=True), work_description=query)
         )
         if not out.ok:
-            raise StepBlocked(f"{owner.name} could not finish the implementation: {out.run.error}")
-        report: r.ImplementationReport = out.report  # type: ignore[assignment]
-        if report.blocked:
-            raise StepBlocked(f"{owner.name} reports being blocked: {report.blocked_reason}")
+            raise StepBlocked(f"{owner.name} could not finish the work: {out.run.error}")
+        report = out.report  # ImplementationReport or WorkReport
+        if report.blocked:  # type: ignore[union-attr]
+            raise StepBlocked(f"{owner.name} reports being blocked: {report.blocked_reason}")  # type: ignore[union-attr]
         changed = await self.services.git.changed_files(worktree)
         if not changed:
             if self._bump(task, "empty") >= 2:
                 raise StepBlocked("implementation produced no changes twice")
-            task.feedback.append("[Orchestrator] Your last attempt changed no files. The task requires code changes.")
+            task.feedback.append("[Orchestrator] Your last attempt changed no files. The task requires changes in the worktree.")
             self.tasks.save(task)
             return
-        commit = await self.services.git.commit_all(worktree, f"{task.id}: {task.title}\n\n{report.summary}", author=owner.id)
+        commit = await self.services.git.commit_all(worktree, f"{task.id}: {task.title}\n\n{report.summary}", author=owner.id)  # type: ignore[union-attr]
         diff = await self.services.git.diff(worktree)
         patch = self.services.artifacts.put(type=ArtifactType.CODE_PATCH, title=f"Diff for {task.id}", creator=owner.id, task_id=task.id,
                                             content=diff, content_type="text/x-diff", metadata={"commit": commit, "files": changed})
@@ -627,21 +664,34 @@ class Orchestrator:
     # ------------------------------------------------------------------ review
 
     async def _step_review(self, task: Task) -> None:
-        reviewer = self._agent("reviewer")
-        if reviewer.id == task.owner:
-            raise StepBlocked("review must be independent of the implementer")
+        candidates = [a for a in self.registry.with_capability(task.review_capability) if a.id != task.owner]
+        if not candidates:
+            raise StepBlocked(f"no independent reviewer with capability '{task.review_capability}' is available")
+        reviewer = next((a for a in candidates if not self._lock(a.id).locked()), candidates[0])
         impl = task.result.get("implementation", {})
         brief = _sections(
             ("Task under review", f"{task.id}: {task.title}\n\n{task.description}"),
             ("Acceptance criteria", "\n".join(f"{i + 1}. {c}" for i, c in enumerate(task.acceptance_criteria))),
             ("Implementer's report (a claim, not evidence)", _bullets(impl)),
             ("Changed files", "\n".join(task.result.get("changed_files", []))),
-            ("Your job", (
+            ("Your job", {
+                "content": (
+                    "You are the lead reviewing content before it is validated and promoted. Read the recipes under ContentJobs/ for this task "
+                    "(they are exactly what was built) and the style / brief documents under Docs/ they must follow. Check every acceptance criterion: "
+                    "names, colours and values against the brief, nothing missing, nothing off-brief. You cannot edit. APPROVE only if it should go into "
+                    "the game; otherwise CHANGES_REQUESTED with specific findings (file = the recipe, what is wrong, what you expect). Submit a ReviewReport."
+                ),
+                "doc": (
+                    "You are the lead reviewing this document. Read it in full (git_diff, read_file) and the documents it builds on. Check every acceptance "
+                    "criterion, that values are concrete and consistent with earlier documents, and that someone could act on it without asking questions. "
+                    "You cannot edit. APPROVE only if the studio should work from it; otherwise CHANGES_REQUESTED with specific findings. Submit a ReviewReport."
+                ),
+            }.get(task.track, (
                 "You are the independent reviewer. Use git_diff and read the changed files in full. Check correctness against each acceptance "
                 "criterion, Unreal conventions (UCLASS/UPROPERTY usage, replication if required, naming), edge cases, and that tests really "
                 "assert the criteria. You cannot edit code. APPROVE only if you would merge it; otherwise CHANGES_REQUESTED with specific findings. "
                 "Submit a ReviewReport."
-            )),
+            ))),
         )
         out = await self._run_agent(
             RunRequest(agent=reviewer, purpose="review diff", brief=brief, output_model=r.ReviewReport, control=self.controls.for_run(task.id, reviewer.id),
@@ -670,6 +720,10 @@ class Orchestrator:
     async def _step_build(self, task: Task) -> None:
         from pathlib import Path
 
+        if task.track != "code":
+            task.result["build"] = {"status": "NOT_APPLICABLE"}
+            await self.tasks.transition(task, S.QA, actor="orchestrator", reason="no code changed - nothing to build")
+            return
         builder = self._agent("build")
         worktree = Path(task.worktree or "")
         async with self._lock(builder.id):
@@ -695,17 +749,25 @@ class Orchestrator:
     # ------------------------------------------------------------------ QA
 
     async def _step_qa(self, task: Task) -> None:
+        if task.track == "doc":
+            await self._qa_document(task)
+            return
         qa = self._agent("qa")
         if qa.id == task.owner:
             raise StepBlocked("QA must be independent of the implementer")
         started = utcnow()
-        unreal = not _is_unavailable(self.services.tests)
+        unreal = self.services.content.available if task.track == "content" else not _is_unavailable(self.services.tests)
         brief = _sections(
             ("Task under test", f"{task.id}: {task.title}\n\n{task.description}"),
             ("Acceptance criteria", "\n".join(f"{i + 1}. {c}" for i, c in enumerate(task.acceptance_criteria))),
             ("Build", _bullets(task.result.get("build", {}))),
             ("Changed files", "\n".join(task.result.get("changed_files", []))),
             ("Your job", (
+                "You are independent QA for content. Do not trust the author's claims. Run `validate_content` yourself: it loads every staged asset in "
+                "the editor and reports facts (class, sizes, durations, level actor counts, game mode, meshes without materials). Read the recipes under "
+                "ContentJobs/ and map every acceptance criterion to a fact from the validation output. If an asset is missing or invalid, or a criterion "
+                "has no supporting fact, the verdict is FAIL with defects listing expected vs actual. You cannot edit. Submit a QAReport."
+            ) if task.track == "content" else (
                 f"You are independent QA. Do not trust the implementer's claims. Run `run_automation_tests` with filter `{task.test_filter}` yourself, "
                 "read the test code to confirm each acceptance criterion is genuinely asserted (not just a test that always passes), and map every "
                 "criterion to evidence (test name + what it asserts). If a criterion has no real test, or any test fails, the verdict is FAIL with "
@@ -746,11 +808,65 @@ class Orchestrator:
         task.result["qa"] = {"summary": report.summary, "artifact_id": art.id, "qa_agent": qa.id, **evidence}
         await self._idle(qa.id)
         if verdict == "PASS":
+            if task.track == "content":
+                await self._promote_content(task)
             reason = "QA passed with evidence" if unreal else "QA by static inspection only - tests were not run (no engine)"
             await self.tasks.transition(task, S.ACCEPTED, actor=qa.id, reason=reason)
             return
         task.result["failure"] = {"stage": "qa", "summary": gate_note or report.summary, "defects": evidence["defects"], "tests": [t for t in evidence["tests"] if t["result"] == "FAIL"]}
         await self.tasks.transition(task, S.FAILED, actor=qa.id, reason=(gate_note or report.summary)[:200])
+
+    async def _promote_content(self, task: Task) -> None:
+        """Reviewed and validated: move the task's assets from /Game/AI_Staging to production content (spec 40)."""
+        from pathlib import Path
+
+        worktree = Path(task.worktree or "")
+        result, log = await self.services.content.run(worktree, {"mode": "promote"})
+        if result.get("skipped"):
+            return
+        self.services.artifacts.put(type=ArtifactType.BUILD_LOG, title=f"Content promotion log for {task.id}", creator="orchestrator", content=log, task_id=task.id)
+        if not result.get("ok"):
+            failed = [f"{x.get('from')}: {x.get('error')}" for x in result.get("results", []) if not x.get("ok")]
+            raise StepBlocked("promotion to production content failed: " + ("; ".join(failed) or str(result.get("error")))[:500])
+        task.result["promoted"] = [x["path"] for x in result.get("results", [])]
+        task.result["commit"] = await self.services.git.commit_all(worktree, f"{task.id}: promote reviewed content to /Game/Shunya", author=task.owner or "orchestrator")
+        task.result["changed_files"] = await self.services.git.changed_files(worktree)
+
+    async def _qa_document(self, task: Task) -> None:
+        """Documents are reviewed by a lead; this step checks facts code can check, including any required verification run."""
+        from pathlib import Path
+
+        worktree = Path(task.worktree or "")
+        docs = [f for f in task.result.get("changed_files", []) if f.startswith("Docs/")]
+        problems: list[str] = []
+        if not docs:
+            problems.append("no document under Docs/ was changed")
+        problems += [f"{f} is empty" for f in docs if (worktree / f).is_file() and (worktree / f).stat().st_size < 40]
+        runs = self.store.tests.list(task_id=task.id, limit=200)
+        last = runs[-1] if runs else None
+        tests_status = "NOT_APPLICABLE"
+        if task.test_filter:
+            available = not _is_unavailable(self.services.tests)
+            tests_status = (last.status if last else "NOT_RUN") if available else "SKIPPED"
+            if available and tests_status != "PASSED":
+                problems.append(f"this task requires a passing verification run ('{task.test_filter}'); the latest recorded run is {tests_status}")
+        review = task.result.get("review", {})
+        images = [a.id for a in self.store.artifacts.list(task_id=task.id) if a.content_type == "image/png"]
+        evidence = {
+            "verdict": "FAIL" if problems else "PASS",
+            "criteria": [{"criterion": c, "met": not problems, "evidence": f"reviewed by {review.get('reviewer')}: {review.get('summary', '')}"[:300]} for c in task.acceptance_criteria],
+            "defects": [{"title": p, "severity": "HIGH", "test": task.test_filter, "expected": "", "actual": p} for p in problems],
+            "test_run": last.model_dump(mode="json", include={"id", "status", "passed", "failed", "filter", "log_artifact_id"}) if last else None,
+            "tests": [{"name": t.name, "result": t.result, "messages": t.messages} for t in (last.results if last else [])][:80],
+            "tests_status": tests_status, "gate_note": "; ".join(problems), "images": images,
+            "qa_agent": "orchestrator", "summary": "Document checks passed." if not problems else "; ".join(problems),
+        }
+        task.result["qa"] = evidence
+        if not problems:
+            await self.tasks.transition(task, S.ACCEPTED, actor="orchestrator", reason="document reviewed; checks passed")
+            return
+        task.result["failure"] = {"stage": "qa", "summary": "; ".join(problems), "defects": evidence["defects"], "tests": [t for t in evidence["tests"] if t["result"] == "FAIL"]}
+        await self.tasks.transition(task, S.FAILED, actor="orchestrator", reason="; ".join(problems)[:200])
 
     # ------------------------------------------------------------------ failure -> bug -> engineering
 
@@ -801,15 +917,24 @@ class Orchestrator:
             reason=str(task.result.get("implementation", {}).get("summary", ""))[:1200],
             evidence={
                 "changed_files": changed, "commit": task.result.get("commit"),
-                "build": task.result.get("build"), "review": task.result.get("review"), "qa": task.result.get("qa"),
+                "build": task.result.get("build"), "review": task.result.get("review"), "qa": task.result.get("qa"), "track": task.track,
+                "images": [a.id for a in self.store.artifacts.list(task_id=task.id) if a.content_type == "image/png"],
                 "acceptance_criteria": task.acceptance_criteria, "cost_usd": task.cost_usd, "llm_calls": task.llm_calls,
             },
         )
         task.result["approval_id"] = approval.id
         await self.tasks.transition(task, S.AWAITING_APPROVAL, actor="orchestrator", reason=f"risk {risk}")
         await self.approvals.request(approval)
-        if task.owner:
+        if self.approval_policy_allows(risk):
+            await self.approvals.decide(approval.id, granted=True, decided_by="policy", comment=f"approved by policy: computed risk {risk} is within the auto-approve limit")
+        elif task.owner:
             await self.statuses.set(task.owner, AgentState.WAITING_APPROVAL, action=f"Waiting for approval of {task.id}", task_id=task.id)
+
+    def approval_policy_allows(self, risk) -> bool:
+        """The studio owner may delegate low-risk merges to policy; everything else waits for them."""
+        order = ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+        limit = (self.settings.auto_approve_max_risk or "").upper()
+        return limit in order and order.index(str(risk)) <= order.index(limit)
 
     async def _step_await_approval(self, task: Task) -> None:
         approval_id = task.result.get("approval_id")
