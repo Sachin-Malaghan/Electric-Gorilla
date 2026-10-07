@@ -36,11 +36,12 @@ def strict_schema(schema: dict[str, Any]) -> dict[str, Any]:
 class AnthropicProvider(IModelProvider):
     name = "anthropic"
 
-    def __init__(self, *, use_fallbacks: bool = True, client: Any | None = None):
+    def __init__(self, *, use_fallbacks: bool = True, client: Any | None = None, api_key: str | None = None):
         if client is None:
             import anthropic
 
-            client = anthropic.AsyncAnthropic()
+            # An explicit key (from the studio's settings) wins; otherwise the SDK resolves credentials from the environment.
+            client = anthropic.AsyncAnthropic(api_key=api_key) if api_key else anthropic.AsyncAnthropic()
         self._client = client
         self._use_fallbacks = use_fallbacks
 

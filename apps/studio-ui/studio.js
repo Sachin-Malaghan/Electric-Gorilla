@@ -319,7 +319,8 @@
     chip("Build", s.build || "—", s.build === "PASSED" ? "good" : s.build ? "bad" : "");
     chip("Tests", s.tests ? `${s.tests.passed} / ${s.tests.total}` : "—", s.tests ? (s.tests.status === "PASSED" ? "good" : "bad") : "");
     chip("Open bugs", s.open_bugs, s.open_bugs ? "warn" : "");
-    chip("Cost", money(s.cost_usd));
+    const cap = st.spend && st.spend.max_spend_usd;
+    chip("Spend", cap ? `${money(st.spend.spent_usd)} / ${money(cap)}` : money(s.cost_usd), cap && st.spend.spent_usd >= cap ? "bad" : "");
   }
 
   // ------------------------------------------------------------------ tasks panel
@@ -551,6 +552,39 @@
     );
     panel.append(actions);
   }
+
+  // ------------------------------------------------------------------ model settings (the key is write-only)
+  async function showModelSettings() {
+    const m = await api("/settings/model"), body = el("div");
+    const kv = el("div", "kv");
+    const add = (k, v) => kv.append(el("span", "", k), el("span", "", v));
+    add("Agents run on", m.provider === "anthropic" ? "Claude (real agents)" : "scripts (no model; only the two built-in requests)");
+    add("API key", m.key_set ? `${m.key_hint} (from ${m.key_source})` : "not set");
+    add("Models", `${m.models.standard} (standard), ${m.models.strong} (hard work), ${m.models.fast} (trivial)`);
+    add("Spent so far", money(m.spent_usd));
+    add("Spending cap", m.max_spend_usd ? money(m.max_spend_usd) : "none");
+    body.append(kv);
+    const key = el("input", "field"); key.type = "password"; key.autocomplete = "off"; key.placeholder = "Anthropic API key (sk-ant-...) - leave empty to keep the current one";
+    const cap = el("input", "field"); cap.type = "number"; cap.min = "0"; cap.step = "1"; cap.value = m.max_spend_usd;
+    const provider = el("select", "field");
+    for (const [value, label] of [["anthropic", "Claude - real agents (uses the API key, costs money)"], ["scripted", "Scripts - free, no model"]]) {
+      const o = el("option", "", label); o.value = value; o.selected = m.provider === value; provider.append(o);
+    }
+    key.addEventListener("input", () => { if (key.value.trim()) provider.value = "anthropic"; });  // pasting a key means "use it"
+    body.append(el("label", "sub", "Run agents on"), provider, el("label", "sub", "API key"), key, el("label", "sub", "Spending cap in USD (0 = no cap). Model calls stop when it is reached."), cap);
+    body.append(el("p", "muted", "The key is stored on the server and is never sent back to this page. Real agents spend money on every step; start with a small cap."));
+    const actions = el("div", "actions");
+    actions.append(button("Save", "good", async () => {
+      const payload = { provider: provider.value, max_spend_usd: Number(cap.value || 0) };
+      if (key.value.trim()) payload.api_key = key.value.trim();
+      await post("/settings/model", payload);
+      $("#modal").hidden = true;
+    }));
+    if (m.key_set && m.key_source !== "environment") actions.append(button("Remove stored key", "bad", async () => { await post("/settings/model", { api_key: "", provider: "scripted" }); $("#modal").hidden = true; }));
+    body.append(actions);
+    openModal("Model and spending", body);
+  }
+  $("#model-button").addEventListener("click", () => showModelSettings().catch((e) => alert(e.message)));
 
   // ------------------------------------------------------------------ tabs, modal, request form
   function setTab(tab) {

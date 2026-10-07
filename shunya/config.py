@@ -65,6 +65,10 @@ class Settings(BaseModel):
     # New feature requests are refused (HTTP 429) while this many are still in flight.
     max_active_features: int = 3
     log_level: str = "INFO"
+    # Hard cap on total model spend (USD) across the whole studio. 0 = no cap. Applies to real providers.
+    max_spend_usd: float = 25.0
+    # True when SHUNYA_MODEL_PROVIDER was set explicitly; otherwise the provider follows whether a key is available.
+    provider_pinned: bool = False
     package_timeout_s: int = 5400
 
     demo_step_delay: float = Field(default=0.0, description="Scripted provider only: seconds of 'thinking' per step, so the office is watchable.")
@@ -140,6 +144,7 @@ def load_settings(**overrides) -> Settings:
         "SHUNYA_API_TOKEN": "api_token",
         "SHUNYA_MAX_ACTIVE_FEATURES": "max_active_features",
         "SHUNYA_LOG_LEVEL": "log_level",
+        "SHUNYA_MAX_SPEND_USD": "max_spend_usd",
     }
     for key, field in mapping.items():
         if env.get(key):
@@ -154,6 +159,7 @@ def load_settings(**overrides) -> Settings:
         values["engine_root"] = None
     else:
         values["engine_root"] = _default_engine_root()
+    values["provider_pinned"] = bool(env.get("SHUNYA_MODEL_PROVIDER")) or "model_provider" in overrides
     values.update(overrides)
     settings = Settings(**values)
     if "workspace_dir" in values and "game_repo" not in values:

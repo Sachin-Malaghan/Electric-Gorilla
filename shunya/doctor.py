@@ -71,18 +71,24 @@ def run_checks(settings: Settings) -> list[Check]:
 
     add("Game template", OK if (settings.game_template / f"{settings.game_project_name}.uproject").is_file() else FAIL, str(settings.game_template))
 
-    if settings.model_provider == "anthropic":
-        import os
+    from shunya.core.secrets import SecretStore, hint
 
-        has_key = bool(os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"))
+    key, source = SecretStore(settings.data_dir).anthropic_key()
+    wants_real = settings.model_provider == "anthropic" or (bool(key) and not settings.provider_pinned)
+    if wants_real:
         try:
             import anthropic  # noqa: F401
 
-            add("Model provider", OK if has_key else WARN, "anthropic" + ("" if has_key else " - no ANTHROPIC_API_KEY in the environment (an `ant auth login` profile also works)"))
+            if key:
+                add("Model provider", OK, f"Claude, API key {hint(key)} from {source}")
+            else:
+                add("Model provider", FAIL, "SHUNYA_MODEL_PROVIDER=anthropic but no API key: set ANTHROPIC_API_KEY in .env or enter it under Model in the office")
         except ImportError:
             add("Model provider", FAIL, "anthropic SDK is not installed: pip install -e .[anthropic]")
+        cap = settings.max_spend_usd
+        add("Spending cap", OK if cap > 0 else WARN, f"${cap:.2f} total (SHUNYA_MAX_SPEND_USD)" if cap > 0 else "no cap - real agents can spend without limit")
     else:
-        add("Model provider", WARN, "scripted - employees follow fixed scripts; only the two built-in requests work")
+        add("Model provider", WARN, "scripted - employees follow fixed scripts; only the two built-in requests work. Supply an API key to use real agents")
 
     loopback = settings.host in ("127.0.0.1", "localhost", "::1")
     if settings.api_token:

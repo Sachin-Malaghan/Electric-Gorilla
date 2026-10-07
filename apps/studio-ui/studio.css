@@ -67,6 +67,8 @@ ul.plain li { padding: 2px 0; }
 img.evidence { display: block; max-width: 100%; border: 1px solid var(--line); border-radius: 6px; margin-top: 8px; cursor: zoom-in; }
 .policy { display: block; font-size: 12px; color: var(--muted); margin-bottom: 10px; }
 .child { cursor: default; }
+.field { display: block; width: 100%; background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; font: inherit; margin: 3px 0 10px; }
+#model-button { margin-left: 8px; white-space: nowrap; }
 .reason { background: #3a1f1f; border: 1px solid #6b3030; border-radius: 6px; padding: 6px 8px; margin-top: 6px; font-size: 12px; white-space: pre-wrap; word-break: break-word; }
 textarea.comment { width: 100%; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px; font: inherit; resize: vertical; min-height: 34px; margin-top: 8px; }
 

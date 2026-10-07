@@ -47,6 +47,12 @@ class ApprovalPolicy(BaseModel):
     max_risk: str = Field(default="", pattern="^(|LOW|MEDIUM)$", description="Merges at or below this computed risk are approved by policy; empty = always ask")
 
 
+class ModelSettings(BaseModel):
+    provider: str | None = Field(default=None, pattern="^(anthropic|scripted)$")
+    api_key: str | None = Field(default=None, max_length=400, description="Anthropic API key; stored on the server, never returned. Empty string removes it.")
+    max_spend_usd: float | None = Field(default=None, ge=0, le=100000, description="Hard cap on total model spend; 0 = no cap")
+
+
 class RetryBody(BaseModel):
     note: str = ""
 
@@ -395,6 +401,22 @@ def create_app(studio: Studio | None = None, settings: Settings | None = None) -
     @app.post("/approvals/{approval_id}/reject")
     async def reject(approval_id: str, body: Decision | None = None):
         return await _decide(approval_id, False, body or Decision())
+
+    @app.get("/settings/model")
+    async def get_model_settings():
+        return st().model_settings()
+
+    @app.post("/settings/model")
+    async def set_model_settings(body: ModelSettings):
+        """The owner supplies the API key and the spending cap here. The key is write-only."""
+        try:
+            result = st().configure_model(provider=body.provider, api_key=body.api_key, max_spend_usd=body.max_spend_usd)
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from None
+        except ImportError:
+            raise HTTPException(400, "the anthropic package is not installed on the server: pip install -e .[anthropic]") from None
+        log.info("model settings changed: provider=%s key_set=%s cap=%s", result["provider"], result["key_set"], result["max_spend_usd"])
+        return result
 
     @app.get("/settings/approval-policy")
     async def get_approval_policy():

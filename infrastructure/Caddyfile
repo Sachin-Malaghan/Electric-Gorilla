@@ -1,0 +1,14 @@
+# HTTPS in front of the studio (https://caddyserver.com - a single executable, Windows or Linux).
+# The studio itself stays on 127.0.0.1:8400; only Caddy is reachable from outside.
+#
+#   1. Point a DNS name at the server and replace studio.example.com below.
+#   2. Open ports 80 and 443 in the firewall (not 8400).
+#   3. caddy run --config infrastructure/Caddyfile
+#
+# Caddy obtains and renews the TLS certificate automatically. The studio still requires
+# SHUNYA_API_TOKEN for every request; this only adds encryption.
+
+studio.example.com {
+	encode gzip
+	reverse_proxy 127.0.0.1:8400
+}

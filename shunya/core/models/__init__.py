@@ -24,12 +24,12 @@ __all__ = [
 ]
 
 
-def create_provider(settings):
+def create_provider(settings, api_key: str | None = None):
     """Factory: the configured IModelProvider."""
     if settings.model_provider == "anthropic":
         from shunya.core.models.anthropic_provider import AnthropicProvider
 
-        return AnthropicProvider(use_fallbacks=settings.model_fallbacks)
+        return AnthropicProvider(use_fallbacks=settings.model_fallbacks, api_key=api_key)
     if settings.model_provider == "scripted":
         from shunya.core.models.scripted_provider import ScriptedProvider
         from shunya.core.models.demo_scripts import demo_scripts

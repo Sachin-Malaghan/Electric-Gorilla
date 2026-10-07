@@ -12,6 +12,7 @@ from typing import Any
 from shunya.bridge import HttpUnrealBridge
 from shunya.config import Settings, load_settings
 from shunya.core import processes
+from shunya.core.secrets import KEY_NAME, SecretStore, SpendMeter, hint
 from shunya.core.agent_runtime import AgentRegistry, AgentRunner, AgentStatusService, ControlRegistry, PromptComposer
 from shunya.core.artifacts import FileArtifactStore
 from shunya.core.events import InMemoryEventBus, RedisEventBus
@@ -108,14 +109,21 @@ class Studio:
         )
         self.permissions = PermissionEngine()
         self.tools = build_registry(self.permissions)
-        self.provider = provider or create_provider(s)
+        self.secrets = SecretStore(s.data_dir)
+        self.spend = SpendMeter(self.store, s.max_spend_usd)
+        if provider is None:
+            key, _ = self.secrets.anthropic_key()
+            if key and not s.provider_pinned:
+                s.model_provider = "anthropic"  # a key was supplied and nothing says otherwise: use it
+            provider = create_provider(s, api_key=key or None)
+        self.provider = provider
         self.router = ModelRouter(s)
         self.memory = MemoryService(self.store)
         self.controls = ControlRegistry()
         self.approvals = ApprovalService(self.store, self.bus)
         self.runner = AgentRunner(
             provider=self.provider, router=self.router, registry=self.tools, services=self.services, store=self.store, bus=self.bus,
-            statuses=self.statuses, composer=PromptComposer(s.prompts_dir), tasks=self.tasks, memory=self.memory,
+            statuses=self.statuses, composer=PromptComposer(s.prompts_dir), tasks=self.tasks, memory=self.memory, spend=self.spend,
         )
         self.orchestrator = Orchestrator(
             settings=s, store=self.store, bus=self.bus, tasks=self.tasks, registry=self.registry, statuses=self.statuses,
@@ -158,6 +166,31 @@ class Studio:
             if title not in existing:
                 self.memory.remember(MemoryRecord(kind=MemoryKind.PROJECT, title=title, content=text[:1500], tags=["adr", path.stem]))
 
+    # ------------------------------------------------------------------ model settings (owner only)
+
+    def model_settings(self) -> dict[str, Any]:
+        key, source = self.secrets.anthropic_key()
+        return {
+            "provider": self.settings.model_provider, "key_set": bool(key), "key_hint": hint(key), "key_source": source,
+            "models": {"fast": self.settings.model_fast, "standard": self.settings.model_standard, "strong": self.settings.model_strong},
+            "spent_usd": self.spend.spent_usd, "max_spend_usd": self.spend.limit_usd, "remaining_usd": self.spend.remaining_usd,
+        }
+
+    def configure_model(self, *, provider: str | None = None, api_key: str | None = None, max_spend_usd: float | None = None) -> dict[str, Any]:
+        """Switch provider / key / cap while running. New agent runs use the new provider; runs in flight finish on the old one."""
+        if api_key is not None:
+            self.secrets.set(KEY_NAME, api_key.strip())
+        if max_spend_usd is not None:
+            self.settings.max_spend_usd = self.spend.limit_usd = max_spend_usd
+        if provider is not None or api_key is not None:
+            key, _ = self.secrets.anthropic_key()
+            target = provider or ("anthropic" if key else "scripted")
+            if target == "anthropic" and not key:
+                raise ValueError("an Anthropic API key is needed before the studio can use real agents")
+            self.settings.model_provider = target
+            self.provider = self.runner.provider = create_provider(self.settings, api_key=key or None)
+        return self.model_settings()
+
     # ------------------------------------------------------------------ read model for the 2.5D studio
 
     def agent_view(self, agent_id: str) -> dict[str, Any] | None:
@@ -199,6 +232,7 @@ class Studio:
             "provider": self.settings.model_provider,
             "unreal_available": self.settings.unreal_available,
             "auto_approve_max_risk": self.settings.auto_approve_max_risk,
+            "spend": {"spent_usd": self.spend.spent_usd, "max_spend_usd": self.spend.limit_usd},
             "last_seq": self.store.events.last_seq(),
             "agents": agents,
             "tasks": [t.model_dump(mode="json", exclude={"history"}) for t in tasks],

@@ -121,6 +121,7 @@ class AgentRunner:
         composer: PromptComposer,
         tasks: TaskService,
         memory: MemoryService,
+        spend: Any = None,
     ):
         self.provider = provider
         self.router = router
@@ -132,6 +133,7 @@ class AgentRunner:
         self.composer = composer
         self.tasks = tasks
         self.memory = memory
+        self.spend = spend  # SpendMeter: the studio-wide cap on model spend
 
     # ------------------------------------------------------------------ helpers
 
@@ -141,6 +143,8 @@ class AgentRunner:
 
     def _check_limits(self, req: RunRequest, run: AgentRun, started: float) -> None:
         a, t = req.agent, req.task
+        if self.spend is not None and self.spend.exhausted:
+            raise _Stop(RunStatus.BUDGET_EXCEEDED, f"the studio's model spending cap (${self.spend.limit_usd:.2f}) is reached; the owner must raise it to continue")
         if run.iterations >= a.max_iterations:
             raise _Stop(RunStatus.BUDGET_EXCEEDED, f"max iterations ({a.max_iterations}) reached")
         if time.monotonic() - started > a.max_runtime_s:
@@ -292,6 +296,8 @@ class AgentRunner:
         run.input_tokens += resp.usage.input_tokens + resp.usage.cache_read_tokens + resp.usage.cache_write_tokens
         run.output_tokens += resp.usage.output_tokens
         run.cost_usd = round(run.cost_usd + cost, 6)
+        if self.spend is not None:
+            self.spend.add(cost)
         run.model = model
         self.store.runs.put(run)
         self.store.cost_records.put(

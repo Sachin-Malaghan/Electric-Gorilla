@@ -18,7 +18,9 @@ Put the folder somewhere with a **short path** (for example `C:\studio`): Unreal
 | Setting | Why |
 |---|---|
 | `SHUNYA_API_TOKEN` | Set it. Every API call and the live event stream then need the token. The office page asks for it once and remembers it. Required if you listen on anything other than `127.0.0.1`. |
-| `SHUNYA_MODEL_PROVIDER`, `ANTHROPIC_API_KEY` | `anthropic` for real agents. `scripted` runs only the two built-in requests. |
+| `ANTHROPIC_API_KEY` | The key the employees work with. Set it here, or enter it under **Model** in the office (stored in `data/secrets.json` on the server, never sent back to the browser, never logged). With a key present the studio uses real Claude agents automatically. |
+| `SHUNYA_MAX_SPEND_USD` | Hard cap on total model spend (default 25). When it is reached no further model call is made and work escalates to you; raise it under **Model** or here. 0 removes the cap. |
+| `SHUNYA_MODEL_PROVIDER` | Normally leave unset. `scripted` forces the free scripted employees even when a key exists; `anthropic` requires a key. |
 | `SHUNYA_AUTO_APPROVE_MAX_RISK` | Leave empty to approve every merge yourself, or `LOW` to let policy approve low-risk ones. Packaged builds always come to you. |
 | `SHUNYA_MAX_ACTIVE_FEATURES` | How many feature requests may be in flight (default 3). More are refused with HTTP 429. |
 | `SHUNYA_WORKSPACE_DIR`, `SHUNYA_DATA_DIR` | Where the game repository / worktrees / builds and the database / artifacts / logs live. |
@@ -37,6 +39,27 @@ The server refuses to start on a non-loopback address without a token. To keep i
 - Liveness: `GET /health` (no token; returns 503 if the database is unreachable)
 - Operations: `GET /system` (token; versions, paths, event sequence, child processes, task counts, limits)
 - Logs: `data/logs/studio.log`, rotated at 5 MB, five kept. One line per API request (`shunya.access`), warnings for refused tokens.
+
+### Hosting it on a server
+
+The studio drives Unreal Engine on the machine it runs on, so the server decides what it can do:
+
+| Server | What works |
+|---|---|
+| **Windows with Unreal Engine 5.4+, Visual Studio C++ tools and a GPU** (a cloud GPU instance or a spare PC) | Everything: compiling, automation tests, asset creation, playtests, packaged builds. |
+| Windows without a GPU | Compiling, automation tests and asset creation. Playtests and packaged-build smoke runs need a GPU and a logged-in desktop session. |
+| Linux, or the Docker image | The office, planning, design documents and reviews. Every Unreal step is reported as SKIPPED - never as passed - so nothing can be verified or merged as low risk. |
+
+Steps on a Windows server:
+
+1. Install Unreal Engine (Epic Games Launcher, needs your Epic account) and Visual Studio 2022 with *Game development with C++*.
+2. `scripts\install.ps1`, then edit `.env`: set `SHUNYA_API_TOKEN` (long and random), `ANTHROPIC_API_KEY`, `SHUNYA_MAX_SPEND_USD`. Leave `SHUNYA_HOST=127.0.0.1`.
+3. `shunya doctor` until there are no failures.
+4. `scripts\install-service.ps1` (elevated) so the studio starts at logon and restarts if it stops. Keep that user logged in (auto-logon) if you want playtests.
+5. Put HTTPS in front with `infrastructure/Caddyfile` (replace the host name; open ports 80 and 443 only). Without HTTPS the access token and the API key you type into the office travel in clear text.
+6. Open `https://<your host>`, enter the access token, and check **Model** shows the key and the cap.
+
+Costs to expect: a GPU Windows instance is billed by the hour whether or not agents are working, and every agent step is billed by Anthropic. Start with the small health-component request and a cap of a few dollars.
 
 ## 4. What happens on stop, crash and restart
 
@@ -61,7 +84,8 @@ The release role packages the game with Unreal Automation Tool (build, cook, sta
 - The API has one shared token, no users or roles. Treat it like a password and put the server behind your own TLS-terminating proxy if it leaves the machine.
 - Agents have no shell and no merge tool; they act through typed tools checked by code. Content agents send data to a studio-owned editor script, never code.
 - Agents cannot change `Config/`, `*.Build.cs`, `*.Target.cs`, `*.uproject`; changes there are reverted before every commit.
-- With real agents, set the per-agent `cost_budget` values in `agents/` (via `tools/dev/gen_agents.py`) before the first run.
+- The Anthropic key lives in `.env` or `data/secrets.json` on the server. Anyone with file access to the server, or with the access token, can use the studio to spend on it; the spending cap bounds the damage. Rotate the key if the token leaks.
+- Per-agent budgets (`cost_budget` in `agents/`, via `tools/dev/gen_agents.py`) and per-task budgets apply underneath the studio-wide cap.
 
 ## 8. Not production-ready yet
 
