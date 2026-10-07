@@ -1,0 +1,48 @@
+{
+  "kind": "sequence",
+  "name": "SEQ_Intro",
+  "folder": "Cinematics",
+  "duration_seconds": 6.0,
+  "fps": 30,
+  "camera_keys": [
+    {
+      "time": 0.0,
+      "location": [
+        -3200.0,
+        -3200.0,
+        2600.0
+      ],
+      "rotation": [
+        -33.0,
+        45.0,
+        0.0
+      ]
+    },
+    {
+      "time": 3.0,
+      "location": [
+        -2600.0,
+        0.0,
+        2000.0
+      ],
+      "rotation": [
+        -36.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "time": 6.0,
+      "location": [
+        -1500.0,
+        0.0,
+        1700.0
+      ],
+      "rotation": [
+        -50.0,
+        0.0,
+        0.0
+      ]
+    }
+  ]
+}

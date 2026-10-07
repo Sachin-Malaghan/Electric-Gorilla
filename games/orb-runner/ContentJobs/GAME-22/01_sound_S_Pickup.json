@@ -1,0 +1,7 @@
+{
+  "kind": "sound",
+  "name": "S_Pickup",
+  "folder": "Audio",
+  "source": "SourceArt/Generated/S_Pickup.wav",
+  "looping": false
+}

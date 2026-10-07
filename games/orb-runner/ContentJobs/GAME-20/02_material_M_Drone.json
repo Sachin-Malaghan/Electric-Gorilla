@@ -1,0 +1,20 @@
+{
+  "kind": "material",
+  "name": "M_Drone",
+  "folder": "Characters",
+  "base_color": [
+    0.9,
+    0.1,
+    0.15
+  ],
+  "emissive_color": [
+    0.9,
+    0.1,
+    0.15
+  ],
+  "emissive_strength": 6.0,
+  "metallic": 0.4,
+  "roughness": 0.4,
+  "texture": null,
+  "uv_tiling": 1.0
+}

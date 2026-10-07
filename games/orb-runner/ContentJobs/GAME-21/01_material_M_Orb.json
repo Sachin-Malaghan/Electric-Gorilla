@@ -1,0 +1,20 @@
+{
+  "kind": "material",
+  "name": "M_Orb",
+  "folder": "Props",
+  "base_color": [
+    0.2,
+    0.9,
+    1.0
+  ],
+  "emissive_color": [
+    0.2,
+    0.9,
+    1.0
+  ],
+  "emissive_strength": 14.0,
+  "metallic": 0.0,
+  "roughness": 0.2,
+  "texture": null,
+  "uv_tiling": 1.0
+}

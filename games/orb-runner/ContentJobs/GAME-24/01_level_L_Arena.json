@@ -1,0 +1,346 @@
+{
+  "kind": "level",
+  "name": "L_Arena",
+  "folder": "Maps",
+  "game_mode": "/Script/ShunyaGame.OrbGameMode",
+  "actors": [
+    {
+      "type": "static_mesh",
+      "label": "Floor",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        40.0,
+        40.0,
+        1.0
+      ],
+      "shape": "Plane",
+      "material": "M_Floor"
+    },
+    {
+      "type": "static_mesh",
+      "label": "Wall North",
+      "location": [
+        2000.0,
+        0.0,
+        150.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        41.0,
+        3.0
+      ],
+      "shape": "Cube",
+      "material": "M_Wall"
+    },
+    {
+      "type": "static_mesh",
+      "label": "Wall South",
+      "location": [
+        -2000.0,
+        0.0,
+        150.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        1.0,
+        41.0,
+        3.0
+      ],
+      "shape": "Cube",
+      "material": "M_Wall"
+    },
+    {
+      "type": "static_mesh",
+      "label": "Wall East",
+      "location": [
+        0.0,
+        2000.0,
+        150.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        41.0,
+        1.0,
+        3.0
+      ],
+      "shape": "Cube",
+      "material": "M_Wall"
+    },
+    {
+      "type": "static_mesh",
+      "label": "Wall West",
+      "location": [
+        0.0,
+        -2000.0,
+        150.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        41.0,
+        1.0,
+        3.0
+      ],
+      "shape": "Cube",
+      "material": "M_Wall"
+    },
+    {
+      "type": "static_mesh",
+      "label": "Pillar 1",
+      "location": [
+        800.0,
+        800.0,
+        200.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        2.0,
+        2.0,
+        4.0
+      ],
+      "shape": "Cylinder",
+      "material": "M_Pillar"
+    },
+    {
+      "type": "static_mesh",
+      "label": "Pillar 2",
+      "location": [
+        -800.0,
+        800.0,
+        200.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        2.0,
+        2.0,
+        4.0
+      ],
+      "shape": "Cylinder",
+      "material": "M_Pillar"
+    },
+    {
+      "type": "static_mesh",
+      "label": "Pillar 3",
+      "location": [
+        800.0,
+        -800.0,
+        200.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        2.0,
+        2.0,
+        4.0
+      ],
+      "shape": "Cylinder",
+      "material": "M_Pillar"
+    },
+    {
+      "type": "static_mesh",
+      "label": "Pillar 4",
+      "location": [
+        -800.0,
+        -800.0,
+        200.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        2.0,
+        2.0,
+        4.0
+      ],
+      "shape": "Cylinder",
+      "material": "M_Pillar"
+    },
+    {
+      "type": "player_start",
+      "label": "Player Start",
+      "location": [
+        0.0,
+        0.0,
+        60.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "type": "actor_class",
+      "label": "Orb 1",
+      "location": [
+        1400.0,
+        0.0,
+        80.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "class_path": "/Script/ShunyaGame.OrbCollectible"
+    },
+    {
+      "type": "actor_class",
+      "label": "Orb 2",
+      "location": [
+        -1400.0,
+        0.0,
+        80.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "class_path": "/Script/ShunyaGame.OrbCollectible"
+    },
+    {
+      "type": "actor_class",
+      "label": "Orb 3",
+      "location": [
+        0.0,
+        1400.0,
+        80.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "class_path": "/Script/ShunyaGame.OrbCollectible"
+    },
+    {
+      "type": "actor_class",
+      "label": "Orb 4",
+      "location": [
+        0.0,
+        -1400.0,
+        80.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "class_path": "/Script/ShunyaGame.OrbCollectible"
+    },
+    {
+      "type": "actor_class",
+      "label": "Orb 5",
+      "location": [
+        1300.0,
+        1300.0,
+        80.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "class_path": "/Script/ShunyaGame.OrbCollectible"
+    },
+    {
+      "type": "actor_class",
+      "label": "Orb 6",
+      "location": [
+        -1300.0,
+        1300.0,
+        80.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "class_path": "/Script/ShunyaGame.OrbCollectible"
+    },
+    {
+      "type": "actor_class",
+      "label": "Orb 7",
+      "location": [
+        1300.0,
+        -1300.0,
+        80.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "class_path": "/Script/ShunyaGame.OrbCollectible"
+    },
+    {
+      "type": "actor_class",
+      "label": "Orb 8",
+      "location": [
+        -1300.0,
+        -1300.0,
+        80.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "class_path": "/Script/ShunyaGame.OrbCollectible"
+    },
+    {
+      "type": "actor_class",
+      "label": "Chaser Drone",
+      "location": [
+        -1700.0,
+        1700.0,
+        90.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "class_path": "/Script/ShunyaGame.ChaserDrone"
+    }
+  ]
+}

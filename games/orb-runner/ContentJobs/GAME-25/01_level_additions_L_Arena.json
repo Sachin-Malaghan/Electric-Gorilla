@@ -1,0 +1,154 @@
+{
+  "kind": "level_additions",
+  "level": "L_Arena",
+  "actors": [
+    {
+      "type": "directional_light",
+      "label": "Key Light",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        -48.0,
+        35.0,
+        0.0
+      ],
+      "intensity": 3.5,
+      "color": [
+        0.8,
+        0.86,
+        1.0
+      ]
+    },
+    {
+      "type": "sky_light",
+      "label": "Sky Fill",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "intensity": 0.7
+    },
+    {
+      "type": "sky_atmosphere",
+      "label": "Sky Atmosphere",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "type": "post_process",
+      "label": "Exposure",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "exposure_brightness": 1.0
+    },
+    {
+      "type": "point_light",
+      "label": "Corner Glow 1",
+      "location": [
+        1700.0,
+        1700.0,
+        320.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "intensity": 600.0,
+      "color": [
+        0.45,
+        0.3,
+        0.9
+      ],
+      "radius": 1100.0
+    },
+    {
+      "type": "point_light",
+      "label": "Corner Glow 2",
+      "location": [
+        -1700.0,
+        1700.0,
+        320.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "intensity": 600.0,
+      "color": [
+        0.45,
+        0.3,
+        0.9
+      ],
+      "radius": 1100.0
+    },
+    {
+      "type": "point_light",
+      "label": "Corner Glow 3",
+      "location": [
+        1700.0,
+        -1700.0,
+        320.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "intensity": 600.0,
+      "color": [
+        0.45,
+        0.3,
+        0.9
+      ],
+      "radius": 1100.0
+    },
+    {
+      "type": "point_light",
+      "label": "Corner Glow 4",
+      "location": [
+        -1700.0,
+        -1700.0,
+        320.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "intensity": 600.0,
+      "color": [
+        0.45,
+        0.3,
+        0.9
+      ],
+      "radius": 1100.0
+    }
+  ]
+}

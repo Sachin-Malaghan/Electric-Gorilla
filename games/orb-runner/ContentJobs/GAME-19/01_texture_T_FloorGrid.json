@@ -1,0 +1,7 @@
+{
+  "kind": "texture",
+  "name": "T_FloorGrid",
+  "folder": "Environment",
+  "source": "SourceArt/Generated/T_FloorGrid.png",
+  "srgb": true
+}

@@ -1,0 +1,7 @@
+{
+  "kind": "sound",
+  "name": "S_Lose",
+  "folder": "Audio",
+  "source": "SourceArt/Generated/S_Lose.wav",
+  "looping": false
+}

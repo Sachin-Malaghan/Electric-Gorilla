@@ -1,0 +1,16 @@
+{
+  "kind": "material",
+  "name": "M_Floor",
+  "folder": "Environment",
+  "base_color": [
+    1.0,
+    1.0,
+    1.0
+  ],
+  "emissive_color": null,
+  "emissive_strength": 0.0,
+  "metallic": 0.0,
+  "roughness": 0.85,
+  "texture": "T_FloorGrid",
+  "uv_tiling": 10.0
+}

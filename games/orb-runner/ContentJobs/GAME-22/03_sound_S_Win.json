@@ -1,0 +1,7 @@
+{
+  "kind": "sound",
+  "name": "S_Win",
+  "folder": "Audio",
+  "source": "SourceArt/Generated/S_Win.wav",
+  "looping": false
+}

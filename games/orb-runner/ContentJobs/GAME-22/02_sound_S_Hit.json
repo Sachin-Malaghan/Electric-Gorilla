@@ -1,0 +1,7 @@
+{
+  "kind": "sound",
+  "name": "S_Hit",
+  "folder": "Audio",
+  "source": "SourceArt/Generated/S_Hit.wav",
+  "looping": false
+}

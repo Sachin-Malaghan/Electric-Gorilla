@@ -1,0 +1,16 @@
+{
+  "kind": "material",
+  "name": "M_Wall",
+  "folder": "Environment",
+  "base_color": [
+    0.16,
+    0.19,
+    0.27
+  ],
+  "emissive_color": null,
+  "emissive_strength": 0.0,
+  "metallic": 0.2,
+  "roughness": 0.7,
+  "texture": null,
+  "uv_tiling": 1.0
+}
