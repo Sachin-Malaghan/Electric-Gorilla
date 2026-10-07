@@ -3,8 +3,8 @@
 ## Controls
 | Input | Action |
 |---|---|
-| W / Up arrow | Move north (+X) |
-| S / Down arrow | Move south (-X) |
+| W / Up arrow | Move north (+X), away from the camera |
+| S / Down arrow | Move south (-X), toward the camera |
 | D / Right arrow | Move east (+Y) |
 | A / Left arrow | Move west (-Y) |
 
@@ -18,7 +18,7 @@ Keyboard only for 0.1.
 - Input is ignored once the match is over.
 
 ## Camera
-Follows the player with slight lag (smooth, never rotates), 1700 units away, pitched down 62 degrees.
+Third-person chase camera: behind the player looking north (+X), 950 units away, pitched down 28 degrees. It follows with slight lag and never rotates, so W is always "away from the camera".
 
 ## For QA tooling
 The pawn must accept movement input from code as well as from the keyboard, so an automated bot can play a match.

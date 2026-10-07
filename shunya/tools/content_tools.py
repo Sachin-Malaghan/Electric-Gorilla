@@ -356,6 +356,8 @@ class RunPlaytest(Tool):
                 TestCaseResult(name=f"Playtest.{name}.AverageFpsAtLeast{int(args.min_fps)}", result="PASS" if fps >= args.min_fps else "FAIL", messages=[f"avg_fps={fps} worst_frame_ms={report.get('worst_frame_ms')}"]),
                 TestCaseResult(name=f"Playtest.{name}.ScreenshotCaptured", result="PASS" if shot_id else "FAIL", messages=[f"artifact={shot_id}"]),
             ]
+            if "missing_content" in report:
+                cases.append(TestCaseResult(name=f"Playtest.{name}.AllRuntimeContentPresent", result="PASS" if report["missing_content"] == 0 else "FAIL", messages=[f"missing_content={report['missing_content']}"]))
             status = "PASSED" if all(c.result == "PASS" for c in cases) else "FAILED"
         record = await ctx.services.record_test_run(
             TestRunRecord(task_id=task_id, filter=f"playtest:{args.map}", status=status, passed=sum(c.result == "PASS" for c in cases), failed=sum(c.result == "FAIL" for c in cases), results=cases, log_artifact_id=log_art.id),
@@ -367,4 +369,54 @@ class RunPlaytest(Tool):
         return ToolResult(ok=status == "PASSED", content="\n".join(lines), summary=f"Playtest {status}: {result}", data={"test_run_id": record.id, "status": status, "report": public, "screenshot_artifact_id": shot_id})
 
 
-CONTENT_TOOLS = [QueueTexture, QueueMaterial, QueueSound, QueueLevel, QueueLevelAdditions, QueueSequence, ApplyContent, ValidateContent, GenerateImage, RunPlaytest]
+class PackageGame(Tool):
+    name = "package_game"
+    description = (
+        "Package the game into a standalone Windows build (compile the game target, cook, stage, pak) and smoke-run the packaged "
+        "executable with the QA bot. Takes a long time (tens of minutes). The build is written outside the repository; the result is recorded as evidence."
+    )
+    required_permissions = ["package"]
+    activity = AgentState.COMPILING
+
+    class Input(BaseModel):
+        map: str = Field(pattern=r"^/Game/[A-Za-z0-9_/]+$", description="Startup map, e.g. /Game/Shunya/Maps/L_Arena")
+        version: str = Field(pattern=r"^[0-9]+\.[0-9]+\.[0-9]+$", description="e.g. 0.1.0")
+
+    def describe_call(self, args: BaseModel) -> str:
+        return f"Packaging build {getattr(args, 'version', '')}"
+
+    async def run(self, ctx: ToolContext, args: Input) -> ToolResult:
+        sb = ctx.require_sandbox()
+        task_id = ctx.task.id if ctx.task else None
+        await ctx.services.ensure_built(sb.root, task_id=task_id, agent_id=ctx.agent.id, trace_id=ctx.run.trace_id)
+        out_dir = ctx.services.settings.builds_dir / f"v{args.version}"
+        report, log = await ctx.services.packager.package(sb.root, out_dir, args.map)
+        log_art = ctx.services.artifacts.put(type=ArtifactType.BUILD_LOG, title=f"Packaging log {args.version}", creator=ctx.agent.id, content=log[-400_000:], task_id=task_id)
+        shot_id = None
+        if report.get("screenshot") and Path(report["screenshot"]).is_file():
+            shot_id = ctx.services.artifacts.put(type=ArtifactType.BUILD_ARTIFACT, title=f"Packaged build {args.version} screenshot", creator=ctx.agent.id,
+                                                 content=Path(report["screenshot"]).read_bytes(), task_id=task_id, content_type="image/png").id
+        smoke = report.get("smoke_run") or {}
+        cases: list[TestCaseResult] = []
+        if report.get("skipped"):
+            status = "SKIPPED"
+        else:
+            cases = [
+                TestCaseResult(name="Package.BuildCookStageSucceeded", result="PASS" if report.get("executable") else "FAIL", messages=[str(report.get("error") or f"{report.get('size_mb')} MB in {report.get('file_count')} files")]),
+                TestCaseResult(name="Package.ExecutableStartsAndBotFinishesAMatch", result="PASS" if smoke.get("result") in ("WIN", "LOSE") else "FAIL", messages=[json.dumps(smoke)[:300]]),
+                TestCaseResult(name="Package.BotWinsInThePackagedGame", result="PASS" if smoke.get("result") == "WIN" else "FAIL", messages=[f"score={smoke.get('score')} avg_fps={smoke.get('avg_fps')}"]),
+            ]
+            if "missing_content" in smoke:  # content the code loads by path is not referenced by the map, so the cooker can silently leave it out
+                cases.append(TestCaseResult(name="Package.AllRuntimeContentIsInTheBuild", result="PASS" if smoke["missing_content"] == 0 else "FAIL", messages=[f"missing_content={smoke['missing_content']}"]))
+            status = "PASSED" if all(c.result == "PASS" for c in cases) else "FAILED"
+        record = await ctx.services.record_test_run(
+            TestRunRecord(task_id=task_id, filter="package", status=status, passed=sum(c.result == "PASS" for c in cases), failed=sum(c.result == "FAIL" for c in cases), results=cases, log_artifact_id=log_art.id),
+            agent_id=ctx.agent.id, trace_id=ctx.run.trace_id,
+        )
+        public = {k: v for k, v in report.items() if k != "screenshot"}
+        lines = [f"PACKAGE {status} (run {record.id}) version {args.version}: {json.dumps(public)}", f"  screenshot artifact: {shot_id or 'none'}"]
+        lines += [f"  [{c.result}] {c.name} - {'; '.join(c.messages)}" for c in cases]
+        return ToolResult(ok=status == "PASSED", content="\n".join(lines), summary=f"Package {status}", data={"test_run_id": record.id, "status": status, "report": public})
+
+
+CONTENT_TOOLS = [QueueTexture, QueueMaterial, QueueSound, QueueLevel, QueueLevelAdditions, QueueSequence, ApplyContent, ValidateContent, GenerateImage, RunPlaytest, PackageGame]

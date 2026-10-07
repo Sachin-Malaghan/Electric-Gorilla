@@ -11,6 +11,7 @@ from typing import Any
 
 from shunya.bridge import HttpUnrealBridge
 from shunya.config import Settings, load_settings
+from shunya.core import processes
 from shunya.core.agent_runtime import AgentRegistry, AgentRunner, AgentStatusService, ControlRegistry, PromptComposer
 from shunya.core.artifacts import FileArtifactStore
 from shunya.core.events import InMemoryEventBus, RedisEventBus
@@ -36,7 +37,10 @@ from shunya.tools.registry import build_registry
 from shunya.tools.services import ToolServices
 from shunya.tools.unreal_content import (
     IContentService,
+    IPackageService,
     IPlaytestService,
+    UnavailablePackageService,
+    UnrealPackageService,
     UnavailableContentService,
     UnavailablePlaytestService,
     UnrealContentService,
@@ -66,6 +70,7 @@ class Studio:
         bridge: IUnrealBridge | None = None,
         content: IContentService | None = None,
         playtest: IPlaytestService | None = None,
+        packager: IPackageService | None = None,
     ):
         self.settings = settings or load_settings()
         s = self.settings
@@ -95,9 +100,11 @@ class Studio:
             content = UnrealContentService(s.engine_root, s.game_project_name) if s.unreal_available else UnavailableContentService()
         if playtest is None:
             playtest = UnrealPlaytestService(s.engine_root, s.game_project_name) if s.unreal_available else UnavailablePlaytestService()
+        if packager is None:
+            packager = UnrealPackageService(s.engine_root, s.game_project_name, s.package_timeout_s) if s.unreal_available else UnavailablePackageService()
         self.services = ToolServices(
             settings=s, store=self.store, bus=self.bus, artifacts=self.artifacts, git=self.git, build=build, tests=tests,
-            bridge=self.bridge, content=content, playtest=playtest,
+            bridge=self.bridge, content=content, playtest=playtest, packager=packager,
         )
         self.permissions = PermissionEngine()
         self.tools = build_registry(self.permissions)
@@ -135,6 +142,9 @@ class Studio:
 
     async def stop(self) -> None:
         await self.orchestrator.shutdown()
+        killed = processes.kill_all()  # no compiler or editor may outlive the studio
+        if killed:
+            log.warning("terminated %d child process tree(s) on shutdown", killed)
         self.store.close()
         self._started = False
 

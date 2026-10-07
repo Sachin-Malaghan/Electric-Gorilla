@@ -60,6 +60,12 @@ class Settings(BaseModel):
 
     host: str = "127.0.0.1"
     port: int = 8400
+    # When set, every API call and the WebSocket must present it. Required to listen on anything but loopback.
+    api_token: str = ""
+    # New feature requests are refused (HTTP 429) while this many are still in flight.
+    max_active_features: int = 3
+    log_level: str = "INFO"
+    package_timeout_s: int = 5400
 
     demo_step_delay: float = Field(default=0.0, description="Scripted provider only: seconds of 'thinking' per step, so the office is watchable.")
     demo_inject_compile_error: bool = Field(
@@ -80,6 +86,15 @@ class Settings(BaseModel):
     def worktrees_dir(self) -> Path:
         # short on purpose: Unreal build output nests ~150 characters below this (Windows 260-char limit)
         return self.workspace_dir / "wt"
+
+    @property
+    def builds_dir(self) -> Path:
+        """Packaged game builds (not committed anywhere)."""
+        return self.workspace_dir / "builds"
+
+    @property
+    def logs_dir(self) -> Path:
+        return self.data_dir / "logs"
 
     @property
     def unreal_available(self) -> bool:
@@ -122,6 +137,9 @@ def load_settings(**overrides) -> Settings:
         "SHUNYA_PORT": "port",
         "SHUNYA_MAX_CONCURRENT_TASKS": "max_concurrent_tasks",
         "SHUNYA_AUTO_APPROVE_MAX_RISK": "auto_approve_max_risk",
+        "SHUNYA_API_TOKEN": "api_token",
+        "SHUNYA_MAX_ACTIVE_FEATURES": "max_active_features",
+        "SHUNYA_LOG_LEVEL": "log_level",
     }
     for key, field in mapping.items():
         if env.get(key):

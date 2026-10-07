@@ -39,11 +39,11 @@ Legend: ✅ built and tested · 🟡 built, not fully exercised (see note) · �
 | 33 | Budget / cost system | ✅ | Per agent run and per task; ledger at `/costs` |
 | 34 | Permissions and guardrails | ✅ | |
 | 35 | Tracing / monitoring | 🟡 | Trace ids + `/traces/{id}`; no external exporter (OpenTelemetry) yet |
-| 36 | CI/CD | 🟡 | GitHub Actions workflow for the Python suite; no Unreal CI |
+| 36 | CI/CD | 🟡 | GitHub Actions workflow for the Python suite; the release role packages a Windows Development build locally; no Unreal CI, no Shipping build |
 | 37 | Failure recovery / escalation | ✅ | Bounded fix loops, escalation to supervisor, human retry |
 | 38 | Persistent company state and restart recovery | ✅ | `test_pipeline.py` restart tests |
 | 39 | Polish 2.5D company simulation | ⬜ | Unreal 2.5D client (spec 42) not started; pathfinding is straight-line |
-| 40 | Production hardening and security review | ⬜ | API has no auth; localhost only |
+| 40 | Production hardening and security review | 🟡 | API token, process-tree cleanup, rotating logs, health/system endpoints, feature limit, `doctor`, `backup`, packaged builds with a smoke run. No users/roles, TLS, metrics, or external review |
 
 ## V1 acceptance criteria (spec 49)
 

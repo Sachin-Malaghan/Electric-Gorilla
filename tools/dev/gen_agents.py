@@ -138,7 +138,8 @@ FILES = {
     "devops/devops.yaml": [
         agent("build_engineer_01", "Rohan", "Build Engineer", ["official builds", "build health", "compiler diagnostics"], "devops", "#e0574f", 0, cap="build", sup="producer_01", tools=[], perms={"compile": "YES", "read_code": "YES"}),
         agent("ci_agent_01", "Kiran", "CI Agent", ["pipelines", "automated checks"], "devops", "#e87a5f", 1, sup="build_engineer_01"),
-        writer("release_agent_01", "Aditi", "Release Agent", ["release notes", "version summaries"], "devops", "#d94c6a", 2, "release_manager", "build_engineer_01", perms={**P_DOC, "package": "YES", "deploy": "APPROVAL"}),
+        writer("release_agent_01", "Aditi", "Release Agent", ["release notes", "packaged builds", "version summaries"], "devops", "#d94c6a", 2, "release_manager", "build_engineer_01",
+               tools_extra=["package_game"], perms={**P_DOC, "package": "YES", "deploy": "APPROVAL"}, max_runtime_s=7200),
     ],
     "documentation/documentation.yaml": [
         writer("technical_writer_01", "Nikhil", "Technical Writer", ["player manual", "class reference"], "documentation", "#9aa3b2", 0, "technical_writer", "producer_01"),

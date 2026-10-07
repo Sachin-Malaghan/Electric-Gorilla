@@ -22,7 +22,7 @@ from shunya.shared.schemas import (
 from shunya.studio import Studio
 from shunya.tools.content.generators import generate_texture
 from shunya.tools.unreal_build import IBuildService, ITestService
-from shunya.tools.unreal_content import IContentService, IPlaytestService
+from shunya.tools.unreal_content import IContentService, IPackageService, IPlaytestService
 
 HEALTH_TESTS = [
     "ShunyaGame.Health.DefaultsTo100",
@@ -129,6 +129,22 @@ class FakePlaytestService(IPlaytestService):
         return {**self.report, "screenshot": str(shot)}, "ShunyaPlaytest: " + json.dumps(self.report)
 
 
+class FakePackageService(IPackageService):
+    def __init__(self) -> None:
+        self.calls = 0
+        self.fail = False
+
+    async def package(self, project_dir: Path, out_dir: Path, map_path: str):
+        self.calls += 1
+        if self.fail:
+            return {"ok": False, "error": "BuildCookRun exited with code 1: simulated cook failure", "output_dir": str(out_dir), "package_seconds": 1.0}, "fake uat log"
+        exe = out_dir / "Windows" / "ShunyaGame.exe"
+        exe.parent.mkdir(parents=True, exist_ok=True)
+        exe.write_bytes(b"MZ fake")
+        smoke = {"result": "WIN", "score": 80, "orbs_remaining": 0, "avg_fps": 61.0, "seconds": 14.0}
+        return {"ok": True, "output_dir": str(out_dir), "executable": str(exe), "size_mb": 0.1, "file_count": 1, "package_seconds": 1.0, "smoke_run": smoke, "screenshot": None}, "fake uat log"
+
+
 @pytest.fixture
 def settings(tmp_path: Path):
     return load_settings(
@@ -150,6 +166,7 @@ def make_studio(settings):
         provider = ScriptedProvider({**demo_scripts(inject_compile_error=inject), **(scripts or {})})
         kwargs.setdefault("content", FakeContentService())
         kwargs.setdefault("playtest", FakePlaytestService())
+        kwargs.setdefault("packager", FakePackageService())
         studio = Studio(settings, provider=provider, build=build or FakeBuildService(), tests=tests or FakeTestService(), **kwargs)
         studios.append(studio)
         return await studio.start()

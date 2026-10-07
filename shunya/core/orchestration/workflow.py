@@ -53,6 +53,7 @@ from shunya.shared.schemas import (
     MemoryRecord,
     MessageType,
     Priority,
+    RiskLevel,
     RunStatus,
     Severity,
     Task,
@@ -909,6 +910,9 @@ class Orchestrator:
         build_status = str(task.result.get("build", {}).get("status", "NOT_RUN"))
         tests_status = str(task.result.get("qa", {}).get("tests_status", "NOT_RUN"))
         risk, reasons = assess_risk(changed_files=changed, diff=diff, build_status=build_status, tests_status=tests_status)
+        if task.test_filter == "package":
+            # spec 28: packaging / release always goes to the studio owner, whatever the diff looks like
+            risk, reasons = RiskLevel.HIGH, ["release packaging: the studio owner signs off every packaged build", *reasons]
         patch = self.services.artifacts.put(type=ArtifactType.CODE_PATCH, title=f"Diff for {task.id}", creator=task.owner or "orchestrator", task_id=task.id,
                                             content=diff, content_type="text/x-diff", metadata={"commit": task.result.get("commit"), "files": changed}, status="PENDING_APPROVAL")
         approval = Approval(

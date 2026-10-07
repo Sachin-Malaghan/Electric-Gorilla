@@ -9,6 +9,7 @@ import os
 import sys
 
 from shunya.config import load_settings
+from shunya.logging_setup import configure as configure_logging
 from shunya.shared.schemas import ApprovalStatus, EventType, TaskStatus
 
 
@@ -22,12 +23,64 @@ def _serve(args: argparse.Namespace) -> int:
         overrides["model_provider"] = args.provider
     if "SHUNYA_DEMO_STEP_DELAY" not in os.environ:
         overrides["demo_step_delay"] = 0.9  # scripted steps are instant; pace them so the office can be watched
+    if args.host:
+        overrides["host"] = args.host
+    if args.port:
+        overrides["port"] = args.port
     settings = load_settings(**overrides)
-    print(f"Shunya Studio AI  ->  http://{args.host or settings.host}:{args.port or settings.port}")
+    if settings.host not in ("127.0.0.1", "localhost", "::1") and not settings.api_token:
+        print(f"Refusing to listen on {settings.host} without an access token. Set SHUNYA_API_TOKEN (see .env.example).")
+        return 2
+    log_file = configure_logging(settings.logs_dir, level=settings.log_level)
+    print(f"Shunya Studio AI  ->  http://{settings.host}:{settings.port}")
+    print(f"  access token   : {'required' if settings.api_token else 'not set (local use only)'}")
+    print(f"  log file       : {log_file}")
     print(f"  model provider : {settings.model_provider}")
     print(f"  unreal engine  : {settings.engine_root or 'not found (builds/tests will be SKIPPED)'}")
     print(f"  game repo      : {settings.game_repo}")
-    uvicorn.run(create_app(settings=settings), host=args.host or settings.host, port=args.port or settings.port, log_level="info")
+    uvicorn.run(create_app(settings=settings), host=settings.host, port=settings.port, log_level="warning", log_config=None)
+    return 0
+
+
+def _doctor(_: argparse.Namespace) -> int:
+    from shunya.doctor import report, run_checks
+
+    return report(run_checks(load_settings()))
+
+
+def _backup(args: argparse.Namespace) -> int:
+    """Copy the database and artifacts into one zip. Safe while the studio runs (SQLite online backup)."""
+    import sqlite3
+    import tempfile
+    import zipfile
+    from datetime import datetime
+    from pathlib import Path
+
+    settings = load_settings()
+    target = Path(args.output) if args.output else settings.data_dir / "backups" / f"shunya-{datetime.now():%Y%m%d-%H%M%S}.zip"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if not settings.db_url.startswith("sqlite:///"):
+        print("The database is not SQLite; back it up with your database's own tools (pg_dump). Artifacts only will be archived.")
+    with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as z:
+        if settings.db_url.startswith("sqlite:///"):
+            db = Path(settings.db_url.removeprefix("sqlite:///"))
+            if db.is_file():
+                with tempfile.TemporaryDirectory() as tmp:
+                    copy = Path(tmp) / "shunya.db"
+                    src, dst = sqlite3.connect(db), sqlite3.connect(copy)
+                    with dst:
+                        src.backup(dst)
+                    src.close()
+                    dst.close()
+                    z.write(copy, "shunya.db")
+        count = 0
+        if settings.artifacts_dir.is_dir():
+            for f in settings.artifacts_dir.rglob("*"):
+                if f.is_file():
+                    z.write(f, f"artifacts/{f.relative_to(settings.artifacts_dir).as_posix()}")
+                    count += 1
+    print(f"Backup written: {target} ({target.stat().st_size / 1_048_576:.1f} MB, {count} artifacts)")
+    print("The game repository (workspace/ShunyaGame) is a git repository; back it up by pushing it to a remote.")
     return 0
 
 
@@ -111,10 +164,17 @@ def main(argv: list[str] | None = None) -> int:
     demo.add_argument("--provider", choices=["scripted", "anthropic"])
     demo.add_argument("--approve", action="store_true", help="auto-approve the final merge (otherwise you are asked)")
     demo.add_argument("--no-unreal", action="store_true", help="skip real compilation/tests even if an engine is installed")
+    sub.add_parser("doctor", help="check that this machine can run the studio")
+    backup = sub.add_parser("backup", help="archive the database and artifacts into a zip")
+    backup.add_argument("--output", help="target zip path (default: data/backups/shunya-<timestamp>.zip)")
     args = parser.parse_args(argv)
-    logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
     if args.cmd == "serve":
         return _serve(args)
+    if args.cmd == "doctor":
+        return _doctor(args)
+    if args.cmd == "backup":
+        return _backup(args)
+    logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
     return asyncio.run(_demo(args))
 
 

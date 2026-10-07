@@ -36,8 +36,9 @@ AOrbRunnerPawn::AOrbRunnerPawn()
 	CameraArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraArm"));
 	CameraArm->SetupAttachment(Collision);
 	CameraArm->SetUsingAbsoluteRotation(true);
-	CameraArm->SetRelativeRotation(FRotator(-62.f, 0.f, 0.f));
-	CameraArm->TargetArmLength = 1700.f;
+	// third-person chase camera: behind and above the player, looking forward (+X)
+	CameraArm->SetRelativeRotation(FRotator(-28.f, 0.f, 0.f));
+	CameraArm->TargetArmLength = 950.f;
 	CameraArm->bDoCollisionTest = false;
 	CameraArm->bEnableCameraLag = true;
 	CameraArm->CameraLagSpeed = 6.f;

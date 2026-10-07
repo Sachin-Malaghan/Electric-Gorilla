@@ -16,4 +16,4 @@ One camera, 6 seconds at 30 fps, a slow descent toward the arena:
 | 3 s | -2600, 0, 2000 | -36, 0, 0 |
 | 6 s | -1500, 0, 1700 | -50, 0, 0 |
 
-The last frame roughly matches the gameplay camera so a cut into play is not jarring.
+The move ends above the south side of the arena looking north, the same direction as the gameplay chase camera.

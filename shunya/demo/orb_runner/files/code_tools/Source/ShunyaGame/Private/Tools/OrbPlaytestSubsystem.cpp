@@ -21,6 +21,14 @@ namespace OrbPlaytest
 	const float GiveUpAfterSeconds = 90.f;
 	const float ExitDelaySeconds = 2.f;
 	const float AvoidRadius = 420.f;
+
+	// Everything the game looks up by path at runtime. A build that lacks any of these still runs
+	// (the code tolerates missing content), so the playtest reports them explicitly.
+	const TCHAR* RuntimeContent[] = {
+		TEXT("/Game/Shunya/Characters/M_Player.M_Player"), TEXT("/Game/Shunya/Characters/M_Drone.M_Drone"), TEXT("/Game/Shunya/Props/M_Orb.M_Orb"),
+		TEXT("/Game/Shunya/Audio/S_Pickup.S_Pickup"), TEXT("/Game/Shunya/Audio/S_Hit.S_Hit"), TEXT("/Game/Shunya/Audio/S_Win.S_Win"),
+		TEXT("/Game/Shunya/Audio/S_Lose.S_Lose"), TEXT("/Game/Shunya/Audio/S_MusicLoop.S_MusicLoop"),
+	};
 }
 
 bool UOrbPlaytestSubsystem::ShouldCreateSubsystem(UObject* Outer) const
@@ -109,10 +117,19 @@ void UOrbPlaytestSubsystem::Report(const TCHAR* Result)
 	const AOrbRunnerPawn* Player = Cast<AOrbRunnerPawn>(UGameplayStatics::GetPlayerPawn(World, 0));
 	const FOrbRules& Rules = GameMode->GetRules();
 	const float MeasuredSeconds = FMath::Max(Elapsed - 1.f, 0.001f);
+	int32 MissingContent = 0;
+	for (const TCHAR* Path : OrbPlaytest::RuntimeContent)
+	{
+		if (!LoadObject<UObject>(nullptr, Path, nullptr, LOAD_NoWarn | LOAD_Quiet))
+		{
+			++MissingContent;
+			UE_LOG(LogShunyaGame, Warning, TEXT("ShunyaPlaytest missing content: %s"), Path);
+		}
+	}
 	UE_LOG(LogShunyaGame, Display,
-		TEXT("ShunyaPlaytest: {\"result\":\"%s\",\"score\":%d,\"orbs_remaining\":%d,\"time_remaining\":%.1f,\"health\":%.0f,\"seconds\":%.1f,\"avg_fps\":%.1f,\"worst_frame_ms\":%.1f,\"map\":\"%s\"}"),
+		TEXT("ShunyaPlaytest: {\"result\":\"%s\",\"score\":%d,\"orbs_remaining\":%d,\"time_remaining\":%.1f,\"health\":%.0f,\"seconds\":%.1f,\"avg_fps\":%.1f,\"worst_frame_ms\":%.1f,\"missing_content\":%d,\"map\":\"%s\"}"),
 		Result, Rules.Score, Rules.OrbsRemaining, Rules.TimeRemaining, Player && Player->GetHealth() ? Player->GetHealth()->GetHealth() : 0.f,
-		Elapsed, Frames / MeasuredSeconds, WorstFrameMs, *World->GetMapName());
+		Elapsed, Frames / MeasuredSeconds, WorstFrameMs, MissingContent, *World->GetMapName());
 }
 
 int32 UOrbPlaytestSubsystem::PickNearest(const FVector& From, const TArray<FVector>& Candidates)

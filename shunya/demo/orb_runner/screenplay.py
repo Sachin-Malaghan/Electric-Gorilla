@@ -165,6 +165,11 @@ STEPS: list[Step] = [
     _doc("release_notes", "Write the 0.1.0 release notes", "release_manager", "producer", ["qa_signoff", "docs_manual"], "Release/ReleaseNotes-0.1.0.md",
          ["Lists what is in the build and its known limits", "States that promotion to main has not been done"],
          "Write Docs/Release/ReleaseNotes-0.1.0.md.", type="DOCUMENTATION"),
+    Step("release_package", "Package the Windows build", "doc", "release_manager", "producer", ["release_notes"],
+         ["A standalone Windows build is produced by build, cook, stage and pak", "The packaged executable starts and the QA bot wins a match in it",
+          "Docs/Release/Build-0.1.0.md states where the build is, its size and the smoke-run result"],
+         description="Package version 0.1.0 with package_game (startup map /Game/Shunya/Maps/L_Arena) and write Docs/Release/Build-0.1.0.md from the real result.",
+         verify="package", test_filter="package", type="DOCUMENTATION", priority="HIGH"),
 ]
 
 BY_TITLE = {s.title: s for s in STEPS}
@@ -363,6 +368,33 @@ def _author_doc(ctx: ScriptContext, step: Step, task_id: str) -> ScriptStep:
             files[name] = _report_playtest(numbers, cases) if step.verify == "playtest" else _report_performance(numbers, cases, budget)
             if run.is_error:
                 notes = "The verification run did NOT pass; the report states the measured results."
+    elif step.verify == "package":
+        run = ctx.last("package_game")
+        if run is None:
+            return call("package_game", map=content.MAP, version="0.1.0")
+        m = re.search(r"PACKAGE (\w+) \(run ([\w-]+)\) version (\S+): (\{.*\})", run.result)
+        cases = "\n".join(line.strip() for line in run.result.splitlines() if line.strip().startswith("["))
+        if "SKIPPED" in run.result or not m:
+            files["Docs/Release/Build-0.1.0.md"] = f"# Packaged build 0.1.0\n\n**NOT BUILT.** {run.result.strip()[:1500]}\n"
+            notes = "UNVERIFIED: nothing was packaged."
+        else:
+            try:
+                rep = json.loads(m.group(4))
+            except json.JSONDecodeError:
+                rep = {}
+            smoke = rep.get("smoke_run") or {}
+            files["Docs/Release/Build-0.1.0.md"] = (
+                f"# Packaged build {m.group(3)} - Windows (Development)\n\nPackaging run `{m.group(2)}`. Verdict: **{m.group(1)}**.\n\n"
+                "| | |\n|---|---|\n"
+                f"| Location | `{rep.get('output_dir')}` |\n| Executable | `{rep.get('executable')}` |\n| Size | {rep.get('size_mb')} MB in {rep.get('file_count')} files |\n"
+                f"| Packaging time | {rep.get('package_seconds')} s |\n| Smoke run | {smoke.get('result')} - score {smoke.get('score')}, {smoke.get('avg_fps')} FPS average |\n\n"
+                f"## Checks\n```\n{cases}\n```\n\n"
+                "## How to run\nStart the executable above. No Unreal Engine installation is needed on the machine that runs it.\n\n"
+                "## Notes\nThis is a Development configuration build (logging and the QA bot are included); a Shipping build is a later step. "
+                "The build is not stored in git. " + (f"Error: {rep.get('error')}" if rep.get("error") else "") + "\n"
+            )
+            if run.is_error:
+                notes = "Packaging did NOT pass; the document states the real result."
     elif step.verify == "regression":
         run = ctx.last("run_automation_tests")
         if run is None:

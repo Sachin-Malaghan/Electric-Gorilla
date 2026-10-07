@@ -62,6 +62,7 @@
   role: Release Agent
   responsibilities:
   - release notes
+  - packaged builds
   - version summaries
   enabled: true
   supervisor: build_engineer_01
@@ -81,6 +82,7 @@
   - git_status
   - create_doc
   - patch_doc
+  - package_game
   permissions:
     read_docs: 'YES'
     read_code: 'YES'
@@ -106,3 +108,4 @@
   - Docs/*
   max_iterations: 20
   cost_budget: 2.0
+  max_runtime_s: 7200

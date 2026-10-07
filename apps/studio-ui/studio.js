@@ -16,8 +16,16 @@
     if (text !== undefined && text !== null) n.textContent = String(text);
     return n;
   };
+  // When the server requires a token it is kept as a cookie, so images and the WebSocket carry it too.
+  const askToken = () => {
+    const token = prompt("This studio requires an access token (SHUNYA_API_TOKEN):");
+    if (!token) return false;
+    document.cookie = `shunya_token=${encodeURIComponent(token.trim())}; path=/; SameSite=Strict; max-age=2592000`;
+    return true;
+  };
   const api = async (path, opts) => {
-    const r = await fetch(path, opts);
+    let r = await fetch(path, opts);
+    if (r.status === 401 && askToken()) r = await fetch(path, opts);
     if (!r.ok) {
       let detail = r.statusText;
       try { detail = (await r.json()).detail || detail; } catch (_) { /* not json */ }

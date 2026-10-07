@@ -8,12 +8,14 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import hmac
 import logging
+import time
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, PlainTextResponse, Response
+from fastapi import FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -22,7 +24,9 @@ from shunya.bridge.client import EDITOR_COMMANDS, READ_ROUTES, RUNTIME_COMMANDS
 from shunya.config import Settings
 from shunya.core.models.pricing import PRICES
 from shunya.knowledge import HybridRetriever
-from shunya.shared.schemas import Priority, TaskStatus
+from shunya import __version__
+from shunya.core import processes
+from shunya.shared.schemas import Priority, TaskStatus, TaskType
 from shunya.studio import Studio
 
 log = logging.getLogger(__name__)
@@ -54,8 +58,6 @@ class UnrealCommand(BaseModel):
 
 
 def create_app(studio: Studio | None = None, settings: Settings | None = None) -> FastAPI:
-    owned = studio is None
-
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         app.state.studio = studio or Studio(settings)
@@ -63,13 +65,40 @@ def create_app(studio: Studio | None = None, settings: Settings | None = None) -
         try:
             yield
         finally:
-            if owned:
-                await app.state.studio.stop()
+            # always: running pipelines and their child processes must not outlive the server
+            await app.state.studio.stop()
 
-    app = FastAPI(title="Shunya Studio AI", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="Shunya Studio AI", version=__version__, lifespan=lifespan)
+    started_at = time.time()
+    access = logging.getLogger("shunya.access")
+    configured = settings or (studio.settings if studio else None)
+    OPEN_PATHS = ("/health", "/ui/", "/favicon.ico")
 
     def st() -> Studio:
         return app.state.studio
+
+    def token_ok(presented: str | None) -> bool:
+        expected = (configured.api_token if configured else "") or st().settings.api_token
+        return not expected or (presented is not None and hmac.compare_digest(presented.encode(), expected.encode()))
+
+    def presented_token(headers, query, cookies) -> str | None:
+        auth = headers.get("authorization", "")
+        if auth.lower().startswith("bearer "):
+            return auth[7:].strip()
+        return headers.get("x-shunya-token") or query.get("token") or cookies.get("shunya_token")
+
+    @app.middleware("http")
+    async def guard_and_log(request: Request, call_next):
+        """Authentication (when SHUNYA_API_TOKEN is set) and an access log line per request."""
+        path = request.url.path
+        begun = time.perf_counter()
+        if path != "/" and not path.startswith(OPEN_PATHS) and not token_ok(presented_token(request.headers, request.query_params, request.cookies)):
+            access.warning("401 %s %s from %s", request.method, path, request.client.host if request.client else "?")
+            return JSONResponse({"detail": "missing or wrong API token"}, status_code=401, headers={"WWW-Authenticate": "Bearer"})
+        response = await call_next(request)
+        if path not in ("/health", "/studio/state") and not path.startswith("/ui/"):
+            access.info("%s %s %s %.0fms", response.status_code, request.method, path, (time.perf_counter() - begun) * 1000)
+        return response
 
     def dump(items) -> list[dict]:
         return [i.model_dump(mode="json") for i in items]
@@ -83,7 +112,32 @@ def create_app(studio: Studio | None = None, settings: Settings | None = None) -
 
     @app.get("/health")
     async def health():
-        return {"ok": True}
+        """Liveness + readiness, without authentication and without internals."""
+        s = st()
+        try:
+            s.store.events.last_seq()
+            database = True
+        except Exception:  # noqa: BLE001
+            database = False
+        return JSONResponse(
+            {"ok": database, "version": __version__, "uptime_s": int(time.time() - started_at), "database": database,
+             "provider": s.settings.model_provider, "unreal": s.settings.unreal_available, "auth_required": bool(s.settings.api_token)},
+            status_code=200 if database else 503,
+        )
+
+    @app.get("/system")
+    async def system():
+        """Operational view for the studio owner."""
+        s = st()
+        tasks = s.store.tasks.list(limit=5000)
+        return {
+            "version": __version__, "uptime_s": int(time.time() - started_at), "data_dir": str(s.settings.data_dir), "workspace_dir": str(s.settings.workspace_dir),
+            "log_file": str(s.settings.logs_dir / "studio.log"), "database": s.settings.db_url.split("@")[-1], "event_seq": s.store.events.last_seq(),
+            "event_subscribers": getattr(s.bus, "subscriber_count", None), "child_processes": processes.active(),
+            "tasks_by_status": {st_: sum(1 for t in tasks if t.status == st_) for st_ in sorted({t.status for t in tasks})},
+            "limits": {"max_concurrent_tasks": s.settings.max_concurrent_tasks, "max_active_features": s.settings.max_active_features,
+                       "auto_approve_max_risk": s.settings.auto_approve_max_risk},
+        }
 
     @app.get("/studio/state")
     async def studio_state():
@@ -171,6 +225,10 @@ def create_app(studio: Studio | None = None, settings: Settings | None = None) -
 
     @app.post("/tasks", status_code=201)
     async def create_feature(body: FeatureRequest):
+        s = st()
+        live = [t for t in s.store.tasks.list(limit=5000) if t.type in (TaskType.FEATURE, TaskType.EPIC) and t.status not in (TaskStatus.DONE, TaskStatus.CANCELLED, TaskStatus.BLOCKED)]
+        if len(live) >= s.settings.max_active_features:
+            raise HTTPException(429, f"{len(live)} feature(s) are already in flight (limit {s.settings.max_active_features}); wait for one to finish or cancel it")
         task = await st().orchestrator.submit_feature(body.request, priority=body.priority)
         return task.model_dump(mode="json")
 
@@ -364,6 +422,9 @@ def create_app(studio: Studio | None = None, settings: Settings | None = None) -
 
     @app.websocket("/ws/studio")
     async def ws_studio(ws: WebSocket, since: int | None = None):
+        if not token_ok(presented_token(ws.headers, ws.query_params, ws.cookies)):
+            await ws.close(code=4401)
+            return
         await ws.accept()
         s = st()
         stream = s.bus.subscribe()

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 
 from shunya.demo.orb_runner import code, screenplay
@@ -9,19 +10,28 @@ from shunya.shared.schemas import AgentState, ApprovalStatus, EventType, RiskLev
 from shunya.tools.content import generators as gen
 from shunya.tools.git_tools import git
 
-from .conftest import FakeContentService, FakePlaytestService, child_tasks, status_of, wait_for
+from .conftest import FakeContentService, FakePackageService, FakePlaytestService, child_tasks, status_of
 
 S = TaskStatus
 REQUEST = "Build Orb Runner: a small arena game where the player collects orbs while a drone chases them."
 
 
 async def _run(studio, timeout=240.0):
+    """Runs the feature; the studio owner (this test) decides whatever policy does not."""
     feature = await studio.orchestrator.submit_feature(REQUEST)
+    human: list = []
 
     def settled():
         return status_of(studio, feature.id) in (S.DONE, S.BLOCKED)
 
-    await wait_for(settled, timeout=timeout, interval=0.1)
+    deadline = asyncio.get_event_loop().time() + timeout
+    while not settled():
+        assert asyncio.get_event_loop().time() < deadline, "feature did not settle in time"
+        for approval in studio.store.approvals.list(status=str(ApprovalStatus.PENDING)):
+            human.append(approval)
+            await studio.approvals.decide(approval.id, granted=True, decided_by="studio_owner")
+        await asyncio.sleep(0.1)
+    feature.result["human_approvals"] = human
     return feature
 
 
@@ -34,7 +44,7 @@ async def test_every_department_delivers_and_the_game_is_merged(make_studio, set
     tasks = child_tasks(studio, feature.id)
     blocked = {t.title: t.result.get("blocked_reason") for t in tasks if t.status != S.DONE}
     assert not blocked, blocked
-    assert status_of(studio, feature.id) == S.DONE and len(tasks) == len(screenplay.STEPS) == 33
+    assert status_of(studio, feature.id) == S.DONE and len(tasks) == len(screenplay.STEPS) == 34
 
     # every department did real work, by the capability the producer assigned
     by_title = {t.title: t for t in tasks}
@@ -83,7 +93,17 @@ async def test_every_department_delivers_and_the_game_is_merged(make_studio, set
 
     # approvals: all decided by the low-risk policy, each with computed risk and evidence
     approvals = studio.store.approvals.list(limit=200)
-    assert len(approvals) == 33 and all(a.status == ApprovalStatus.GRANTED and a.decided_by == "policy" and a.risk_level == RiskLevel.LOW for a in approvals)
+    by_policy = [a for a in approvals if a.decided_by == "policy"]
+    assert len(approvals) == 34 and len(by_policy) == 33 and all(a.status == ApprovalStatus.GRANTED and a.risk_level == RiskLevel.LOW for a in by_policy)
+    # packaging is never auto-approved: the owner signed off the build, with the packaging evidence attached
+    (package_approval,) = feature.result["human_approvals"]
+    assert package_approval.risk_level == RiskLevel.HIGH and "release packaging" in package_approval.risk_reasons[0]
+    package = by_title["Package the Windows build"]
+    assert package.result["qa"]["test_run"]["filter"] == "package" and package.result["qa"]["tests_status"] == "PASSED"
+    build_doc = (await git(repo, "show", "develop:Docs/Release/Build-0.1.0.md")).out
+    assert "Verdict: **PASSED**" in build_doc and "Smoke run | WIN - score 80" in build_doc
+    assert (studio.settings.builds_dir / "v0.1.0" / "Windows" / "ShunyaGame.exe").is_file()
+    assert not any("ShunyaGame.exe" in f for f in files)  # the build itself is never committed
     assert all(s.state in (AgentState.IDLE, AgentState.OFFLINE) for s in studio.statuses.all())
     offline = sorted(p.id for p in studio.registry.all() if not p.enabled)
     assert len(offline) == 9  # roles with no real work in this game stay empty desks
@@ -124,7 +144,7 @@ async def test_playtest_failure_is_reported_honestly_and_withholds_signoff(make_
     play = by_title["Playtest the game"]
     assert play.status == S.BLOCKED and "still failing" in play.result["blocked_reason"]
     assert "requires a passing verification run" in play.result["qa"]["gate_note"]
-    assert by_title["Write the QA sign-off"].status == S.PLANNED
+    assert by_title["Write the QA sign-off"].status == S.PLANNED and by_title["Package the Windows build"].status == S.PLANNED
     report = (Path(play.worktree) / "Docs/QA/PlaytestReport.md").read_text(encoding="utf-8")
     assert "Verdict: **FAILED**" in report and "| Match result | LOSE |" in report  # the report says what happened
     await studio.stop()
@@ -169,3 +189,18 @@ def test_screenplay_is_internally_consistent():
             declared |= set(re.findall(r'IMPLEMENT_SIMPLE_AUTOMATION_TEST\(\w+,\s*"([^"]+)"', text))
     needed = {e for s in screenplay.STEPS if s.track == "code" for e in s.evidence}
     assert needed <= declared, needed - declared  # every criterion's evidence is a test that really exists
+
+
+async def test_failed_packaging_is_reported_and_never_signed_off(make_studio, settings):
+    settings.auto_approve_max_risk = "LOW"
+    settings.max_concurrent_tasks = 6
+    packager = FakePackageService()
+    packager.fail = True
+    studio = await make_studio(inject=False, packager=packager)
+    feature = await _run(studio)
+    assert status_of(studio, feature.id) == S.BLOCKED and not feature.result["human_approvals"]  # nothing was ever offered for sign-off
+    package = {t.title: t for t in child_tasks(studio, feature.id)}["Package the Windows build"]
+    assert package.status == S.BLOCKED and "requires a passing verification run" in package.result["qa"]["gate_note"]
+    doc = (Path(package.worktree) / "Docs/Release/Build-0.1.0.md").read_text(encoding="utf-8")
+    assert "Verdict: **FAILED**" in doc and "simulated cook failure" in doc
+    await studio.stop()

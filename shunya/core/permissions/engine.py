@@ -46,6 +46,7 @@ DEFAULT_PROTECTED_GLOBS = [
     "Intermediate/*",
     "Saved/*",
     "DerivedDataCache/*",
+    "Build/*/FileOpenOrder/*",
 ]
 
 

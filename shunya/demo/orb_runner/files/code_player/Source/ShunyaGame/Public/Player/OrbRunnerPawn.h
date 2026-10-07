@@ -1,4 +1,4 @@
-// The player: a rolling sphere seen from above. WASD / arrow keys move it; bots can drive it too.
+// The player: a rolling sphere followed by a third-person chase camera. WASD / arrow keys move it; bots can drive it too.
 
 #pragma once
 

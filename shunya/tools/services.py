@@ -20,7 +20,7 @@ from shunya.shared.schemas import ArtifactType, BuildRecord, BuildStatus, Event,
 from shunya.tools.git_tools import GitService
 from shunya.tools.base import ToolError
 from shunya.tools.unreal_build import IBuildService, ITestService, UnavailableBuildService
-from shunya.tools.unreal_content import IContentService, IPlaytestService, copy_binaries, is_built, mark_built, source_fingerprint
+from shunya.tools.unreal_content import IContentService, IPackageService, IPlaytestService, copy_binaries, is_built, mark_built, source_fingerprint
 
 
 @dataclass
@@ -35,6 +35,7 @@ class ToolServices:
     bridge: IUnrealBridge
     content: IContentService
     playtest: IPlaytestService
+    packager: IPackageService
     studio_docs: list[Path] = field(default_factory=list)
     _retrievers: dict[str, tuple[float, HybridRetriever]] = field(default_factory=dict)
     _develop_build: asyncio.Lock = field(default_factory=asyncio.Lock)

@@ -106,6 +106,17 @@ Every task carries a `track`, chosen by the Producer, and the same status-driven
 
 **The Orb Runner screenplay** (`shunya/demo/orb_runner/`) is the scripted provider's second request: 33 tasks that give 31 employees across all nine departments real work - design documents, C++ in six steps, materials, sounds, a level, lighting, a cinematic, a playtest, a performance check, a regression run, a sign-off, a manual and release notes. Nine roles have nothing real to do in a game this small and stay offline (rigging, VFX, landscape, foliage, optimisation, graphics, networking, CI, crash investigation).
 
+## Operating it (see [DEPLOYMENT.md](DEPLOYMENT.md))
+
+- **Access.** `SHUNYA_API_TOKEN` puts every route and the WebSocket behind one shared token (header, cookie or query); `/health` stays open. The server refuses to listen on a non-loopback address without it.
+- **Process trees.** Every process the studio starts is registered in `core/processes.py` and killed as a tree on timeout, cancellation and shutdown. Before this, cancelling a task could leave UnrealBuildTool's compilers running.
+- **Logs and health.** Rotating `data/logs/studio.log` with an access line per request; `/health` for liveness, `/system` for the owner.
+- **Limits.** `SHUNYA_MAX_ACTIVE_FEATURES` bounds feature requests in flight (HTTP 429 beyond it).
+- **`shunya doctor` / `shunya backup`.** Preflight checks for the machine; an online copy of the database plus artifacts.
+- **Packaging.** `package_game` runs Unreal Automation Tool (build, cook, stage, pak), then starts the packaged executable with the QA bot and records the result as a verification run. The task that records a packaged build is always HIGH risk, so it always reaches the owner.
+
+Two defects were found by running this for real and are now guarded against: packaging wrote log files into the worktree that rode along into the commit (now excluded), and assets the game loads by path were missing from the packaged build because no map references them (the game folder is now always cooked, and the playtest reports missing runtime content as a failed check).
+
 ## Known limits of V1
 
 - The C++ index is regex-based. It understands Unreal's macros and conventions well enough for navigation and impact hints; it is not a compiler. `CppIndex` is the seam for libclang or tree-sitter.
@@ -113,4 +124,4 @@ Every task carries a `track`, chosen by the Producer, and the same status-driven
 - Store calls are synchronous inside the event loop. Fine for one studio on one machine; move them to a thread pool or an async driver before scaling.
 - One Unreal process at a time (UnrealBuildTool's mutex), so builds and test runs queue even when tasks run in parallel.
 - Agents cannot yet modify levels or assets: the bridge's editor commands exist, but no enabled role has `unreal_editor_modify`.
-- The API has no authentication. It binds to `127.0.0.1`; do not expose it.
+- API access is one shared token, no users or roles, no built-in TLS.

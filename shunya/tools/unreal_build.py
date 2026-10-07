@@ -16,6 +16,7 @@ import time
 from abc import ABC, abstractmethod
 from pathlib import Path
 
+from shunya.core import processes
 from shunya.shared.schemas import BuildRecord, BuildStatus, CompileDiagnostic, TestCaseResult, TestRunRecord
 
 # One UE process at a time: UnrealBuildTool holds a global mutex and the editor is heavy.
@@ -75,11 +76,13 @@ async def _run(cmd: list[str], *, cwd: Path, timeout: int) -> tuple[int, str, bo
     proc = await asyncio.create_subprocess_exec(
         *cmd, cwd=str(cwd), stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT
     )
+    processes.register(proc.pid)
     try:
         out, _ = await asyncio.wait_for(proc.communicate(), timeout)
+        processes.unregister(proc.pid)
         return proc.returncode or 0, out.decode("utf-8", "replace"), False
     except TimeoutError:
-        proc.kill()
+        processes.kill_tree(proc.pid)  # the whole tree: UnrealBuildTool's compilers, the editor's workers
         out = b""
         try:
             out, _ = await asyncio.wait_for(proc.communicate(), 10)
@@ -87,7 +90,7 @@ async def _run(cmd: list[str], *, cwd: Path, timeout: int) -> tuple[int, str, bo
             pass
         return -1, out.decode("utf-8", "replace"), True
     except asyncio.CancelledError:
-        proc.kill()
+        processes.kill_tree(proc.pid)
         raise
 
 

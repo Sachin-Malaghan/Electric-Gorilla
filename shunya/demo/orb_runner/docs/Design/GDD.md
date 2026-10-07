@@ -1,7 +1,7 @@
 # Orb Runner - Game Design Document
 
 ## One line
-Roll around a small neon arena and recover every orb before the clock runs out, while a drone hunts you.
+A 3D third-person arcade game: roll around a small neon arena and recover every orb before the clock runs out, while a drone hunts you.
 
 ## Pillars
 1. **Readable in one glance.** Dark arena, bright things matter: orbs glow cyan, the drone glows red, you are amber.
@@ -20,7 +20,7 @@ Spawn in the centre -> pick a route through the orbs -> avoid the drone -> last 
 - One drone chases the player. Contact damages the hull on a cooldown.
 
 ## Camera and presentation
-Fixed-angle camera above and behind the player, looking down at about 60 degrees. HUD: score, orbs left, time, hull bar, and a banner when the match ends.
+3D third-person view: a chase camera behind and above the player (about 28 degrees down), so walls, pillars and the drone are seen in perspective. HUD: score, orbs left, time, hull bar, and a banner when the match ends.
 
 ## Out of scope for 0.1
 Menus, restart flow, multiple levels, power-ups, more than one drone, gamepad support.

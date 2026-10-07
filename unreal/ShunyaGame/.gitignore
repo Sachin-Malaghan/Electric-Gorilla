@@ -6,3 +6,4 @@ DerivedDataCache/
 *.sln
 Plugins/*/Binaries/
 Plugins/*/Intermediate/
+Build/*/FileOpenOrder/
