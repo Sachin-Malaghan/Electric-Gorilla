@@ -23,7 +23,11 @@ Requires Python 3.12+ and Git. Unreal Engine 5.4+ is optional (auto-detected und
 .\.venv\Scripts\shunya serve
 ```
 
-Open <http://127.0.0.1:8400> and type one of the two requests the scripted agents know:
+Open <http://127.0.0.1:8400>. If the server has no API key yet, the page asks for one first - an Anthropic key, or the URL, key and model of any OpenAI-compatible endpoint (or put them in `.env` and the prompt never appears); you can also continue in demo mode without a key. Then type what you want built, optionally with a game name.
+
+**Every game gets its own folder.** A new game name creates `workspace/games/<name>/` as its own git repository; every approved task is a commit there. Using an existing name continues that game. When a request finishes, the game's source is also committed into this repository under `games/<name>/` (set `SHUNYA_PUBLISH_PUSH=true` to push that commit too). [`games/orb-runner`](games/orb-runner) is the game from the run described below.
+
+Without a key, the scripted demo employees know two requests:
 
 | Request | What happens | Time with UE 5.8 |
 |---|---|---|
@@ -32,10 +36,10 @@ Open <http://127.0.0.1:8400> and type one of the two requests the scripted agent
 
 Approve or reject under **Approvals**. For the 34-task run, tick *Auto-approve merges whose computed risk is LOW* there (or set `SHUNYA_AUTO_APPROVE_MAX_RISK=LOW`), otherwise every task waits for your click. The packaged build always waits for you.
 
-Afterwards the game's source is in `workspace/ShunyaGame` on the `develop` branch and the standalone build is in `workspace/builds/v0.1.0/Windows`. Play it (WASD or arrow keys; no Unreal installation needed for this):
+Afterwards the game's source is in `workspace/games/orb-runner` (branch `develop`, also committed to `games/orb-runner`) and the standalone build is in `workspace/builds/orb-runner/v0.1.0/Windows`. Play it (WASD or arrow keys; no Unreal installation needed for this):
 
 ```powershell
-.\workspace\builds\v0.1.0\Windows\ShunyaGame.exe
+.\workspace\builds\orb-runner\v0.1.0\Windows\ShunyaGame.exe
 ```
 
 Other commands - a terminal-only run, the tests (no Unreal or API key needed, about 11 minutes), machine check, backup:
@@ -45,6 +49,7 @@ Other commands - a terminal-only run, the tests (no Unreal or API key needed, ab
 .\.venv\Scripts\python -m pytest -q
 .\.venv\Scripts\shunya doctor
 .\.venv\Scripts\shunya backup
+.\.venv\Scripts\shunya games                       # list games; --publish <name> commits one into games/<name>/
 ```
 
 ### Scripted agents vs. real agents
@@ -53,6 +58,7 @@ Other commands - a terminal-only run, the tests (no Unreal or API key needed, ab
 |---|---|---|
 | `scripted` (default) | A fixed screenplay drives the *real* pipeline: real worktrees, compiler, automation tests, headless editor, playtests, reviews and gates. It knows exactly the two requests above and declines anything else. The game's code, documents and asset recipes are part of the script (`shunya/demo/`), not invented at run time. | free |
 | `anthropic` | Real Claude agents with the same tools, permissions and budgets, for any request. Needs `ANTHROPIC_API_KEY` (or an `ant auth login` profile). | per token, shown live in the UI |
+| `openai` | Real agents on any OpenAI-compatible chat-completions endpoint (a router, gateway or local server) with function calling. Needs `SHUNYA_LLM_BASE_URL`, `SHUNYA_LLM_API_KEY` and model ids (`SHUNYA_MODEL_FAST` / `_STANDARD` / `_STRONG`). | whatever the endpoint charges; set `SHUNYA_MODEL_PRICE_INPUT` / `_OUTPUT` so the cap is accurate |
 
 **Using your API key:** put `ANTHROPIC_API_KEY` in `.env`, or click **Model** in the office and paste it there (it is stored on the server and never sent back). The studio then uses real agents automatically, up to the spending cap shown next to it (`SHUNYA_MAX_SPEND_USD`, default $25). Hosting on a server: see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
@@ -79,12 +85,14 @@ Open `workspace/ShunyaGame/ShunyaGame.uproject` in the editor. The `ShunyaAgentB
 | `shunya/api`, `apps/studio-ui` | REST + WebSocket API and the 2.5D studio client |
 | `shunya/demo` | The two screenplays for the scripted provider, including Orb Runner's code, documents and content recipes |
 | `agents/`, `prompts/` | 47 employee definitions (38 active) and layered prompts |
-| `unreal/ShunyaGame` | Template of the game project the studio develops |
+| `unreal/ShunyaGame` | Template every new game folder is created from |
+| `games/` | Published snapshots of the games the studio has built, one folder each |
+| `shunya/core/games.py`, `secrets.py` | Per-game folders and publishing; API key storage and the spending cap |
 | `tests/` | State machine, sandbox, runtime limits, the pipelines for both requests, restart recovery, API |
 | `shunya/doctor.py`, `logging_setup.py`, `core/processes.py` | Machine preflight, rotating logs, child-process cleanup |
 | `docs/` | Architecture, deployment runbook, roadmap, ADRs, the original spec |
 
-Runtime state lives in `data/` (database, artifacts) and `workspace/` (the working game repo and task worktrees); both are git-ignored. Delete them to start from a clean studio.
+Runtime state lives in `data/` (database, artifacts, logs, the stored API key) and `workspace/` (game repositories, task worktrees, packaged builds); both are git-ignored. Delete them to start from a clean studio.
 
 ## Honest status
 
@@ -94,7 +102,8 @@ Verified on the development machine (Windows 10, UE 5.8, Python 3.13):
 - **The game it produced.** Six C++ steps each compiled and passed their tests (22 automation tests in total); materials, sounds, the level, lighting and the intro sequence were built by the headless editor; the QA bot won a match (80 of 80, about 58 FPS average on a 2015 Quadro M4000).
 - **The standalone build.** Unreal Automation Tool packaged a 898 MB Windows Development build; the packaged executable started on its own and the bot won a match in it.
 - The `ShunyaGame` template and both `ShunyaAgentBridge` modules compile on UE 5.8.
-- The automated test suite (63 tests, with stand-ins for the engine).
+- The automated test suite (with stand-ins for the engine).
+- Per-game folders and publishing: the Orb Runner repository was moved into `workspace/games/orb-runner` and its snapshot committed to `games/orb-runner` with the publish command. A full pipeline run that creates a new game folder from scratch has only been exercised in the automated tests.
 
 Two defects surfaced only in the real run and were fixed afterwards, outside the pipeline, by an owner commit on the game's `develop` branch plus changes to the template and tools:
 

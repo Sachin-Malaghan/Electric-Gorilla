@@ -12,9 +12,11 @@ from typing import Any
 from shunya.bridge import HttpUnrealBridge
 from shunya.config import Settings, load_settings
 from shunya.core import processes
-from shunya.core.secrets import KEY_NAME, SecretStore, SpendMeter, hint
+from shunya.core.models.pricing import CUSTOM_PRICES, PRICES, set_custom_price
+from shunya.core.secrets import KEY_NAME, LLM_KEY_NAME, LLM_MODEL_NAME, LLM_URL_NAME, SecretStore, SpendMeter, hint
 from shunya.core.agent_runtime import AgentRegistry, AgentRunner, AgentStatusService, ControlRegistry, PromptComposer
 from shunya.core.artifacts import FileArtifactStore
+from shunya.core.games import GamePublisher, GameRegistry
 from shunya.core.events import InMemoryEventBus, RedisEventBus
 from shunya.core.interfaces import IEventBus, IModelProvider, IUnrealBridge
 from shunya.core.memory import MemoryService
@@ -87,7 +89,10 @@ class Studio:
         self.registry = AgentRegistry(s.agents_dir).load()
         self.statuses = AgentStatusService(self.store, self.bus, self.registry)
         self.artifacts = FileArtifactStore(s.artifacts_dir, self.store)
-        self.git = GitService(s.game_repo, s.worktrees_dir)
+        self.games = GameRegistry(s, self.store)
+        self.publisher = GamePublisher(s, self.games)
+        # worktree-level operations (diff, commit) are the same for every game; repository-level ones go through self.games.git(id)
+        self.git = GitService(s.games_dir, s.worktrees_dir)
         if build is None:
             build = UnrealBuildService(s.engine_root, s.game_project_name, s.build_timeout_s) if s.unreal_available else UnavailableBuildService()
         if tests is None:
@@ -105,17 +110,21 @@ class Studio:
             packager = UnrealPackageService(s.engine_root, s.game_project_name, s.package_timeout_s) if s.unreal_available else UnavailablePackageService()
         self.services = ToolServices(
             settings=s, store=self.store, bus=self.bus, artifacts=self.artifacts, git=self.git, build=build, tests=tests,
-            bridge=self.bridge, content=content, playtest=playtest, packager=packager,
+            bridge=self.bridge, content=content, playtest=playtest, packager=packager, games=self.games,
         )
         self.permissions = PermissionEngine()
         self.tools = build_registry(self.permissions)
         self.secrets = SecretStore(s.data_dir)
         self.spend = SpendMeter(self.store, s.max_spend_usd)
         if provider is None:
-            key, _ = self.secrets.anthropic_key()
-            if key and not s.provider_pinned:
-                s.model_provider = "anthropic"  # a key was supplied and nothing says otherwise: use it
-            provider = create_provider(s, api_key=key or None)
+            s.llm_base_url = s.llm_base_url or self.secrets.get(LLM_URL_NAME)
+            if not s.provider_pinned:  # a key was supplied and nothing says otherwise: use it
+                if self.secrets.llm_key()[0] and s.llm_base_url:
+                    s.model_provider = "openai"
+                elif self.secrets.anthropic_key()[0]:
+                    s.model_provider = "anthropic"
+            self._apply_endpoint_models(self.secrets.get(LLM_MODEL_NAME))
+            provider = create_provider(s, api_key=self.secrets.key_for(s.model_provider)[0] or None)
         self.provider = provider
         self.router = ModelRouter(s)
         self.memory = MemoryService(self.store)
@@ -128,6 +137,7 @@ class Studio:
         self.orchestrator = Orchestrator(
             settings=s, store=self.store, bus=self.bus, tasks=self.tasks, registry=self.registry, statuses=self.statuses,
             runner=self.runner, services=self.services, approvals=self.approvals, memory=self.memory, controls=self.controls,
+            games=self.games, publisher=self.publisher,
         )
         self._started = False
 
@@ -139,10 +149,11 @@ class Studio:
         s = self.settings
         if isinstance(self.bus, RedisEventBus):
             await self.bus.start()
-        await self.git.ensure_repo(s.game_template)
-        self.store.projects.put(Project(id="shunya", name="Shunya", repo_path=str(s.game_repo), engine_root=str(s.engine_root) if s.engine_root else None,
-                                        description="The Unreal game the studio is developing"))
-        self._seed_project_memory()
+        s.games_dir.mkdir(parents=True, exist_ok=True)
+        for game in self.games.adopt_existing():
+            log.info("adopted existing game folder %s", game.repo_path)
+        self.store.projects.put(Project(id="shunya", name="Shunya", repo_path=str(s.games_dir), engine_root=str(s.engine_root) if s.engine_root else None,
+                                        description="The games the studio is developing, one folder each"))
         await self.statuses.bootstrap()
         await self.orchestrator.recover()
         self._started = True
@@ -156,39 +167,56 @@ class Studio:
         self.store.close()
         self._started = False
 
-    def _seed_project_memory(self) -> None:
-        """Project memory = the decisions and standards agents must retrieve before acting (spec 37)."""
-        existing = {m.title for m in self.store.memories.list(limit=5000) if m.kind == MemoryKind.PROJECT}
-        docs = self.settings.game_repo / "Docs"
-        for path in sorted([*docs.glob("adr/*.md"), *docs.glob("CodingStandards.md")]):
-            text = path.read_text(encoding="utf-8")
-            title = text.splitlines()[0].lstrip("# ").strip() if text else path.stem
-            if title not in existing:
-                self.memory.remember(MemoryRecord(kind=MemoryKind.PROJECT, title=title, content=text[:1500], tags=["adr", path.stem]))
-
     # ------------------------------------------------------------------ model settings (owner only)
 
+    def _apply_endpoint_models(self, model: str) -> None:
+        """An endpoint model chosen in the office applies to every tier unless SHUNYA_MODEL_* say otherwise."""
+        s = self.settings
+        if s.model_provider == "openai" and model and not s.models_pinned:
+            s.model_fast = s.model_standard = s.model_strong = model
+        set_custom_price([s.model_fast, s.model_standard, s.model_strong], s.model_price_input, s.model_price_output)
+
     def model_settings(self) -> dict[str, Any]:
-        key, source = self.secrets.anthropic_key()
+        provider = self.settings.model_provider
+        key, source = self.secrets.key_for(provider)
+        any_key = bool(self.secrets.anthropic_key()[0] or self.secrets.llm_key()[0])
         return {
-            "provider": self.settings.model_provider, "key_set": bool(key), "key_hint": hint(key), "key_source": source,
+            "provider": provider, "key_set": bool(key), "any_key_set": any_key, "key_hint": hint(key), "key_source": source,
+            "base_url": self.settings.llm_base_url if provider == "openai" else "",
+            "price_known": all(m in PRICES or m in CUSTOM_PRICES for m in (self.settings.model_standard,)) or provider == "scripted",
             "models": {"fast": self.settings.model_fast, "standard": self.settings.model_standard, "strong": self.settings.model_strong},
             "spent_usd": self.spend.spent_usd, "max_spend_usd": self.spend.limit_usd, "remaining_usd": self.spend.remaining_usd,
         }
 
-    def configure_model(self, *, provider: str | None = None, api_key: str | None = None, max_spend_usd: float | None = None) -> dict[str, Any]:
-        """Switch provider / key / cap while running. New agent runs use the new provider; runs in flight finish on the old one."""
+    def configure_model(self, *, provider: str | None = None, api_key: str | None = None, max_spend_usd: float | None = None,
+                        base_url: str | None = None, model: str | None = None) -> dict[str, Any]:
+        """Switch provider / key / endpoint / cap while running. New agent runs use the new provider; runs in flight finish on the old one."""
+        s = self.settings
+        target = provider or ("openai" if base_url else s.model_provider if s.model_provider != "scripted" else "anthropic" if api_key else "scripted")
         if api_key is not None:
-            self.secrets.set(KEY_NAME, api_key.strip())
+            if target == "scripted":  # removing: clear whatever was stored
+                self.secrets.set(KEY_NAME, "")
+                self.secrets.set(LLM_KEY_NAME, "")
+            else:
+                self.secrets.set(LLM_KEY_NAME if target == "openai" else KEY_NAME, api_key.strip())
+        if base_url is not None:
+            self.secrets.set(LLM_URL_NAME, base_url.strip())
+            s.llm_base_url = base_url.strip()
+        if model is not None:
+            self.secrets.set(LLM_MODEL_NAME, model.strip())
         if max_spend_usd is not None:
-            self.settings.max_spend_usd = self.spend.limit_usd = max_spend_usd
-        if provider is not None or api_key is not None:
-            key, _ = self.secrets.anthropic_key()
-            target = provider or ("anthropic" if key else "scripted")
-            if target == "anthropic" and not key:
-                raise ValueError("an Anthropic API key is needed before the studio can use real agents")
-            self.settings.model_provider = target
-            self.provider = self.runner.provider = create_provider(self.settings, api_key=key or None)
+            s.max_spend_usd = self.spend.limit_usd = max_spend_usd
+        if any(v is not None for v in (provider, api_key, base_url, model)):
+            key, _ = self.secrets.key_for(target)
+            if target != "scripted" and not key:
+                raise ValueError("an API key is needed before the studio can use real agents")
+            if target == "openai" and not s.llm_base_url:
+                raise ValueError("an endpoint URL is needed for an OpenAI-compatible provider")
+            if target == "openai" and not (self.secrets.get(LLM_MODEL_NAME) or s.models_pinned):
+                raise ValueError("a model name is needed for an OpenAI-compatible provider")
+            s.model_provider = target
+            self._apply_endpoint_models(self.secrets.get(LLM_MODEL_NAME))
+            self.provider = self.runner.provider = create_provider(s, api_key=key or None)
         return self.model_settings()
 
     # ------------------------------------------------------------------ read model for the 2.5D studio
@@ -232,6 +260,7 @@ class Studio:
             "provider": self.settings.model_provider,
             "unreal_available": self.settings.unreal_available,
             "auto_approve_max_risk": self.settings.auto_approve_max_risk,
+            "games": [g.model_dump(mode="json") for g in self.games.all()],
             "spend": {"spent_usd": self.spend.spent_usd, "max_spend_usd": self.spend.limit_usd},
             "last_seq": self.store.events.last_seq(),
             "agents": agents,

@@ -58,6 +58,7 @@ ENTITY_TABLES = {
     name: _entity_table(name)
     for name in (
         "projects",
+        "games",
         "agents",
         "tasks",
         "agent_runs",
@@ -245,6 +246,7 @@ class Store:
             return Repository(self.engine, t[name], model, self._lock)
 
         self.projects = repo("projects", s.Project)
+        self.games = repo("games", s.Game)
         self.agents = repo("agents", s.AgentStatus)
         self.tasks = repo("tasks", s.Task)
         self.runs = repo("agent_runs", s.AgentRun)

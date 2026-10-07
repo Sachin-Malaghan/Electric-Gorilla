@@ -12,6 +12,7 @@ import hmac
 import logging
 import time
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
@@ -26,7 +27,7 @@ from shunya.core.models.pricing import PRICES
 from shunya.knowledge import HybridRetriever
 from shunya import __version__
 from shunya.core import processes
-from shunya.shared.schemas import Priority, TaskStatus, TaskType
+from shunya.shared.schemas import Event, EventType, Priority, TaskStatus, TaskType
 from shunya.studio import Studio
 
 log = logging.getLogger(__name__)
@@ -34,6 +35,7 @@ log = logging.getLogger(__name__)
 
 class FeatureRequest(BaseModel):
     request: str = Field(min_length=3, max_length=8000)
+    game: str | None = Field(default=None, max_length=60, description="Game name. An existing game is continued; a new name creates its folder. Omitted = derived from the request.")
     priority: Priority = Priority.MEDIUM
 
 
@@ -48,8 +50,10 @@ class ApprovalPolicy(BaseModel):
 
 
 class ModelSettings(BaseModel):
-    provider: str | None = Field(default=None, pattern="^(anthropic|scripted)$")
-    api_key: str | None = Field(default=None, max_length=400, description="Anthropic API key; stored on the server, never returned. Empty string removes it.")
+    provider: str | None = Field(default=None, pattern="^(anthropic|openai|scripted)$")
+    api_key: str | None = Field(default=None, max_length=400, description="API key; stored on the server, never returned. Empty string removes it.")
+    base_url: str | None = Field(default=None, max_length=300, pattern=r"^https?://\S+$", description="OpenAI-compatible endpoint, e.g. https://host/v1")
+    model: str | None = Field(default=None, max_length=120, description="Model id on that endpoint")
     max_spend_usd: float | None = Field(default=None, ge=0, le=100000, description="Hard cap on total model spend; 0 = no cap")
 
 
@@ -153,6 +157,38 @@ def create_app(studio: Studio | None = None, settings: Settings | None = None) -
     async def projects():
         return dump(st().store.projects.list())
 
+    # ------------------------------------------------------------------ games
+
+    def game_repo(game_id: str | None):
+        s = st()
+        games = s.games.all()
+        chosen = s.games.get(game_id) if game_id else (games[-1] if games else None)
+        if chosen is None:
+            raise HTTPException(404, "no such game" if game_id else "no game exists yet")
+        return Path(chosen.repo_path)
+
+    @app.get("/games")
+    async def games():
+        s = st()
+        tasks = s.store.tasks.list(limit=5000)
+        out = []
+        for g in s.games.all():
+            mine = [t for t in tasks if t.game_id == g.id and t.type not in (TaskType.FEATURE, TaskType.EPIC)]
+            builds = sorted(p.name for p in (s.settings.builds_dir / g.id).glob("v*")) if (s.settings.builds_dir / g.id).is_dir() else []
+            out.append({**g.model_dump(mode="json"), "tasks": len(mine), "tasks_done": sum(1 for t in mine if t.status == TaskStatus.DONE),
+                        "builds": builds, "published_folder": f"games/{g.id}" if g.published_commit else None})
+        return out
+
+    @app.post("/games/{game_id}/publish")
+    async def publish_game(game_id: str):
+        """Commit the game's current develop snapshot into the studio repository's games/<id>/ folder."""
+        s = st()
+        must(s.games.get(game_id), "game")
+        result = await s.publisher.publish(game_id, "published on request")
+        if result.get("published"):
+            await s.bus.publish(Event(type=EventType.GAME_PUBLISHED, payload={"game_id": game_id, "commit": result["commit"], "path": result["path"], "pushed": result.get("pushed", False)}))
+        return result
+
     # ------------------------------------------------------------------ agents
 
     @app.get("/agents")
@@ -235,7 +271,7 @@ def create_app(studio: Studio | None = None, settings: Settings | None = None) -
         live = [t for t in s.store.tasks.list(limit=5000) if t.type in (TaskType.FEATURE, TaskType.EPIC) and t.status not in (TaskStatus.DONE, TaskStatus.CANCELLED, TaskStatus.BLOCKED)]
         if len(live) >= s.settings.max_active_features:
             raise HTTPException(429, f"{len(live)} feature(s) are already in flight (limit {s.settings.max_active_features}); wait for one to finish or cancel it")
-        task = await st().orchestrator.submit_feature(body.request, priority=body.priority)
+        task = await st().orchestrator.submit_feature(body.request, priority=body.priority, game=body.game)
         return task.model_dump(mode="json")
 
     @app.get("/tasks/{task_id}")
@@ -410,7 +446,7 @@ def create_app(studio: Studio | None = None, settings: Settings | None = None) -
     async def set_model_settings(body: ModelSettings):
         """The owner supplies the API key and the spending cap here. The key is write-only."""
         try:
-            result = st().configure_model(provider=body.provider, api_key=body.api_key, max_spend_usd=body.max_spend_usd)
+            result = st().configure_model(provider=body.provider, api_key=body.api_key, max_spend_usd=body.max_spend_usd, base_url=body.base_url, model=body.model)
         except ValueError as e:
             raise HTTPException(400, str(e)) from None
         except ImportError:
@@ -481,7 +517,7 @@ def create_app(studio: Studio | None = None, settings: Settings | None = None) -
         return {
             "engine_root": str(s.settings.engine_root) if s.settings.engine_root else None,
             "build_tools_available": s.settings.unreal_available,
-            "game_repo": str(s.settings.game_repo),
+            "games_dir": str(s.settings.games_dir),
             "editor_bridge": await s.bridge.status(),
         }
 
@@ -508,15 +544,17 @@ def create_app(studio: Studio | None = None, settings: Settings | None = None) -
             raise HTTPException(503, str(e)) from None
 
     @app.get("/knowledge/search")
-    async def knowledge_search(q: str = Query(min_length=2), limit: int = Query(8, le=20)):
+    async def knowledge_search(q: str = Query(min_length=2), limit: int = Query(8, le=20), game: str | None = None):
         s = st()
-        results = await asyncio.to_thread(lambda: s.services.retriever_for(s.settings.game_repo).search(q, limit=limit))
+        repo = game_repo(game)
+        results = await asyncio.to_thread(lambda: s.services.retriever_for(repo).search(q, limit=limit))
         return {"query": q, "results": results, "rendered": HybridRetriever.render(results)}
 
     @app.get("/knowledge/graph")
-    async def knowledge_graph(symbol: str):
+    async def knowledge_graph(symbol: str, game: str | None = None):
         s = st()
-        index = (await asyncio.to_thread(lambda: s.services.retriever_for(s.settings.game_repo))).index
+        repo = game_repo(game)
+        index = (await asyncio.to_thread(lambda: s.services.retriever_for(repo))).index
         return {
             "symbols": [vars(x) for x in index.find_symbol(symbol)[:20]],
             "edges": [vars(e) for e in index.edges_of(symbol)[:200]],

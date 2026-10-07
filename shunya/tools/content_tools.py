@@ -389,7 +389,8 @@ class PackageGame(Tool):
         sb = ctx.require_sandbox()
         task_id = ctx.task.id if ctx.task else None
         await ctx.services.ensure_built(sb.root, task_id=task_id, agent_id=ctx.agent.id, trace_id=ctx.run.trace_id)
-        out_dir = ctx.services.settings.builds_dir / f"v{args.version}"
+        game = ctx.services.games.for_task(task_id)
+        out_dir = ctx.services.settings.builds_dir / (game.id if game else "unknown") / f"v{args.version}"
         report, log = await ctx.services.packager.package(sb.root, out_dir, args.map)
         log_art = ctx.services.artifacts.put(type=ArtifactType.BUILD_LOG, title=f"Packaging log {args.version}", creator=ctx.agent.id, content=log[-400_000:], task_id=task_id)
         shot_id = None

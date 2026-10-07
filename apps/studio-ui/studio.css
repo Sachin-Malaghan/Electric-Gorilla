@@ -33,7 +33,12 @@ main { flex: 1; display: flex; min-height: 0; }
 .conn.on { color: var(--good); } .conn.off { color: var(--bad); }
 #request-form { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); width: min(760px, calc(100% - 32px)); display: flex; gap: 8px; }
 #request-input { flex: 1; background: var(--panel); border: 1px solid var(--line); color: var(--text); border-radius: 8px; padding: 10px 12px; font: inherit; outline: none; }
-#request-input:focus { border-color: var(--accent); }
+#request-input:focus, #game-input:focus { border-color: var(--accent); }
+#game-input { flex: none; width: 170px; background: var(--panel); border: 1px solid var(--line); color: var(--text); border-radius: 8px; padding: 10px 12px; font: inherit; outline: none; }
+.welcome h3 { margin: 0 0 6px; font-size: 18px; }
+.welcome .skip { background: none; border: 0; color: var(--muted); text-decoration: underline; padding: 0; margin-top: 12px; font-size: 12px; }
+.game-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid var(--line); }
+.game-row:first-of-type { border-top: 0; }
 #request-form button, .btn { background: var(--accent); border: 0; border-radius: 8px; padding: 8px 14px; font-weight: 600; color: #fff; }
 .btn.small { padding: 3px 9px; font-size: 12px; border-radius: 6px; font-weight: 500; }
 .btn.ghost { background: transparent; border: 1px solid var(--line); color: var(--text); }

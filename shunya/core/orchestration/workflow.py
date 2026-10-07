@@ -29,6 +29,7 @@ from shunya.core.agent_runtime import (
     RunOutcome,
     RunRequest,
 )
+from shunya.core.games import GamePublisher, GameRegistry, name_from_request, slugify
 from shunya.core.interfaces import IEventBus
 from shunya.core.memory import MemoryService
 from shunya.core.orchestration import reports as r
@@ -87,6 +88,8 @@ class Orchestrator:
         approvals: ApprovalService,
         memory: MemoryService,
         controls: ControlRegistry,
+        games: GameRegistry,
+        publisher: GamePublisher,
     ):
         self.settings = settings
         self.store = store
@@ -99,6 +102,8 @@ class Orchestrator:
         self.approvals = approvals
         self.memory = memory
         self.controls = controls
+        self.games = games
+        self.publisher = publisher
         self._jobs: dict[str, asyncio.Task] = {}
         # Task objects owned by a running pipeline. API calls (pause, retry notes) must mutate
         # the same instance the pipeline saves, or its next save would overwrite them.
@@ -108,13 +113,19 @@ class Orchestrator:
 
     # ================================================================== public API
 
-    async def submit_feature(self, text: str, *, priority: Priority = Priority.MEDIUM, created_by: str = "user") -> Task:
+    async def submit_feature(self, text: str, *, priority: Priority = Priority.MEDIUM, created_by: str = "user", game: str | None = None) -> Task:
+        """A request for a game. Naming an existing game continues it; a new name creates its folder and repository."""
         text = text.strip()
         if not text:
             raise ValueError("feature request is empty")
+        name = (game or "").strip() or name_from_request(text)
+        known = self.games.get(slugify(name))
+        target = await self.games.ensure(name)
+        if known is None:
+            await self.bus.publish(Event(type=EventType.GAME_CREATED, payload={"game_id": target.id, "name": target.name, "folder": target.repo_path}))
         feature = Task(
             id=self.tasks.repo.next_id("FEAT"), type=TaskType.FEATURE, title=text.splitlines()[0][:120],
-            description=text, created_by=created_by, priority=priority,
+            description=text, created_by=created_by, priority=priority, game_id=target.id,
         )
         await self.tasks.create(feature)
         self._spawn(feature.id, self._run_feature(feature.id))
@@ -296,8 +307,8 @@ class Orchestrator:
             await self.approvals.decide(approval.id, granted=False, decided_by="system", comment="task cancelled")
         if task.worktree:
             try:
-                await self.services.git.remove_worktree(task.id)
-            except GitError:
+                await self.games.git(task.game_id).remove_worktree(task.id)
+            except (GitError, KeyError):
                 log.warning("could not remove worktree for %s", task.id)
         for status in self.statuses.all():
             if status.task_id == task.id:
@@ -346,6 +357,7 @@ class Orchestrator:
             children = self.tasks.repo.list(parent_id=feature.id)
             if all(c.status == S.DONE for c in children):
                 feature.result["completed_tasks"] = [c.id for c in children]
+                await self._publish_game(feature)
                 await self.tasks.transition(feature, S.DONE, actor="producer", reason="all tasks done")
             elif feature.status not in (S.CANCELLED, S.BLOCKED):
                 stuck = [f"{c.id} is {c.status}" for c in children if c.status != S.DONE]
@@ -362,12 +374,28 @@ class Orchestrator:
         finally:
             self._live.pop(feature.id, None)
 
+    async def _publish_game(self, feature: Task) -> None:
+        """Commit the finished game's folder into the studio repository. A publishing problem never fails the feature."""
+        if not self.settings.publish_games:
+            return
+        try:
+            result = await self.publisher.publish(feature.game_id, f"{feature.title} ({feature.id})")
+        except Exception as e:  # noqa: BLE001
+            log.exception("publishing %s failed", feature.game_id)
+            result = {"published": False, "reason": f"{type(e).__name__}: {e}"}
+        feature.result["publish"] = result
+        self.tasks.save(feature)
+        if result.get("published"):
+            await self.bus.publish(Event(type=EventType.GAME_PUBLISHED, task_id=feature.id, trace_id=feature.trace_id,
+                                         payload={"game_id": feature.game_id, "commit": result["commit"], "path": result["path"], "pushed": result.get("pushed", False)}))
+
     async def _plan_feature(self, feature: Task) -> None:
         control = self.controls.task(feature.id)
         director = self._agent("director")
         producer = self._agent("producer")
-        repo_sandbox = WorkspaceSandbox(self.settings.game_repo, writable_globs=[], isolated=False)
-        knowledge = self._knowledge(self.settings.game_repo, feature.description, 5000)
+        game_repo = self.games.repo(feature.game_id)
+        repo_sandbox = WorkspaceSandbox(game_repo, writable_globs=[], isolated=False)
+        knowledge = self._knowledge(game_repo, feature.description, 5000)
         project_memory = self.memory.render(self.memory.recall(feature.description, kind=MemoryKind.PROJECT, limit=6))
 
         # 1. Studio Director interprets the objective.
@@ -479,7 +507,7 @@ class Orchestrator:
             task = Task(
                 id=self.tasks.repo.next_id("GAME"), type=TaskType(p.type), title=p.title, description=p.description,
                 created_by=producer.id, priority=Priority(p.priority), parent_id=feature.id, acceptance_criteria=p.acceptance_criteria,
-                track=p.track,
+                track=p.track, game_id=feature.game_id,
                 # an unknown capability falls back to the engineering defaults rather than stalling the task
                 assignee_capability=p.assignee_capability if self.registry.with_capability(p.assignee_capability) else "programmer",
                 review_capability=p.reviewer_capability if self.registry.with_capability(p.reviewer_capability) else "reviewer",
@@ -541,7 +569,7 @@ class Orchestrator:
                             await self._message(MessageType.TASK_HANDOFF, "producer_01", owner.id, task, f"Please implement: {task.title}",
                                                 {"acceptance_criteria": task.acceptance_criteria})
                         case S.ASSIGNED:
-                            branch, path = await self.services.git.create_worktree(task.id)
+                            branch, path = await self.games.git(task.game_id).create_worktree(task.id)
                             task.branch, task.worktree = branch, str(path)
                             await self.tasks.transition(task, S.IN_PROGRESS, actor=task.owner or "orchestrator", reason=f"isolated workspace {branch}")
                         case S.IN_PROGRESS:
@@ -957,9 +985,9 @@ class Orchestrator:
         finally:
             waiter.cancel()
         if approval.status == ApprovalStatus.GRANTED:
-            merge = await self.services.git.merge_to_develop(task.id, f"Merge {task.branch}: {task.title} (approved by {approval.decided_by}, {approval.id})")
+            merge = await self.games.git(task.game_id).merge_to_develop(task.id, f"Merge {task.branch}: {task.title} (approved by {approval.decided_by}, {approval.id})")
             task.result["merge_commit"] = merge
-            await self.services.git.remove_worktree(task.id)
+            await self.games.git(task.game_id).remove_worktree(task.id)
             for bug in self.store.bugs.list(task_id=task.id, status="OPEN"):
                 bug.status = "CLOSED"
                 self.store.bugs.put(bug)

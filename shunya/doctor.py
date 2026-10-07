@@ -73,9 +73,20 @@ def run_checks(settings: Settings) -> list[Check]:
 
     from shunya.core.secrets import SecretStore, hint
 
-    key, source = SecretStore(settings.data_dir).anthropic_key()
-    wants_real = settings.model_provider == "anthropic" or (bool(key) and not settings.provider_pinned)
-    if wants_real:
+    secrets = SecretStore(settings.data_dir)
+    key, source = secrets.anthropic_key()
+    llm_key, llm_source = secrets.llm_key()
+    base_url = settings.llm_base_url or secrets.get("llm_base_url")
+    uses_endpoint = settings.model_provider == "openai" or (bool(llm_key and base_url) and not settings.provider_pinned)
+    wants_real = uses_endpoint or settings.model_provider == "anthropic" or (bool(key) and not settings.provider_pinned)
+    if uses_endpoint:
+        if llm_key and base_url:
+            add("Model provider", OK, f"OpenAI-compatible endpoint {base_url}, key {hint(llm_key)} from {llm_source}, model {settings.model_standard if settings.models_pinned else secrets.get('llm_model') or '(not chosen)'}")
+        else:
+            add("Model provider", FAIL, "OpenAI-compatible provider needs SHUNYA_LLM_BASE_URL and SHUNYA_LLM_API_KEY (or enter them under Model in the office)")
+        cap = settings.max_spend_usd
+        add("Spending cap", OK if cap > 0 else WARN, f"${cap:.2f} total (SHUNYA_MAX_SPEND_USD)" + ("" if settings.model_price_input or settings.model_price_output else " - model price unknown, spend is estimated at the highest known rate; set SHUNYA_MODEL_PRICE_INPUT / _OUTPUT"))
+    elif wants_real:
         try:
             import anthropic  # noqa: F401
 

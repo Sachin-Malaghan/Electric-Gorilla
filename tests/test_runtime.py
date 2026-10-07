@@ -12,7 +12,7 @@ from shunya.core.models.scripted_provider import ScriptedProvider, call, calls
 from shunya.core.permissions import WorkspaceSandbox
 from shunya.shared.schemas import AgentState, EventType, RunStatus
 
-from .conftest import wait_for
+from .conftest import sandbox_game, the_repo, wait_for
 
 
 class Report(BaseModel):
@@ -25,7 +25,7 @@ async def _run(make_studio, script, *, agent_id="gameplay_programmer_01", contro
     agent = studio.registry.get(agent_id).model_copy(deep=True)
     if mutate:
         mutate(agent)
-    sandbox = WorkspaceSandbox(Path(studio.settings.game_repo), writable_globs=agent.write_globs, isolated=isolated)
+    sandbox = WorkspaceSandbox(await sandbox_game(studio), writable_globs=agent.write_globs, isolated=isolated)
     req = RunRequest(agent=agent, purpose="unit test", brief="## Task\nDo the thing.", output_model=Report, control=control or RunControl(), sandbox=sandbox)
     outcome = await studio.runner.run(req)
     return studio, outcome
@@ -126,8 +126,8 @@ async def test_permissions_are_enforced_by_code_not_by_the_model(make_studio):
     assert "protected" in seen["create_file:Config/DefaultEngine.ini"]
     assert "escapes the workspace" in seen["create_file:../escape.txt"]
     assert "PERMISSION DENIED" in seen["spawn_actor:"] and "unknown tool" in seen["merge_branch:"]
-    assert not (Path(studio.settings.game_repo).parent / "escape.txt").exists()
-    assert "x" != (Path(studio.settings.game_repo) / "Config/DefaultEngine.ini").read_text(encoding="utf-8")
+    assert not (the_repo(studio.settings).parent / "escape.txt").exists()
+    assert "x" != (the_repo(studio.settings) / "Config/DefaultEngine.ini").read_text(encoding="utf-8")
 
 
 async def test_writes_denied_outside_an_isolated_worktree(make_studio):
@@ -138,7 +138,7 @@ async def test_writes_denied_outside_an_isolated_worktree(make_studio):
         return call("submit_report", summary="refused")
 
     studio, out = await _run(make_studio, script, isolated=False)
-    assert out.ok and not (Path(studio.settings.game_repo) / "Source/ShunyaGame/New.cpp").exists()
+    assert out.ok and not (the_repo(studio.settings) / "Source/ShunyaGame/New.cpp").exists()
 
 
 async def test_read_only_agent_cannot_write(make_studio):
@@ -150,7 +150,7 @@ async def test_read_only_agent_cannot_write(make_studio):
 
     studio = await make_studio(scripts={"qa": script})
     qa = studio.registry.get("qa_functional_01")
-    sandbox = WorkspaceSandbox(Path(studio.settings.game_repo), writable_globs=["Source/*"], isolated=True)
+    sandbox = WorkspaceSandbox(await sandbox_game(studio), writable_globs=["Source/*"], isolated=True)
     out = await studio.runner.run(RunRequest(agent=qa, purpose="t", brief="x", output_model=Report, control=RunControl(), sandbox=sandbox))
     assert out.ok
 
@@ -164,7 +164,7 @@ async def test_cancel_and_pause(make_studio):
     control = RunControl()
     studio = await make_studio(scripts={"programmer": script})
     agent = studio.registry.get("gameplay_programmer_01").model_copy(update={"max_iterations": 100000, "max_tool_calls": 100000, "token_budget": 10**12})
-    sandbox = WorkspaceSandbox(Path(studio.settings.game_repo), isolated=True)
+    sandbox = WorkspaceSandbox(await sandbox_game(studio), isolated=True)
     task = asyncio.create_task(studio.runner.run(RunRequest(agent=agent, purpose="t", brief="x", output_model=Report, control=control, sandbox=sandbox)))
     await wait_for(lambda: studio.store.tool_calls.count() >= 2)
     control.pause()

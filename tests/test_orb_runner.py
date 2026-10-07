@@ -10,7 +10,7 @@ from shunya.shared.schemas import AgentState, ApprovalStatus, EventType, RiskLev
 from shunya.tools.content import generators as gen
 from shunya.tools.git_tools import git
 
-from .conftest import FakeContentService, FakePackageService, FakePlaytestService, child_tasks, status_of
+from .conftest import FakeContentService, FakePackageService, FakePlaytestService, child_tasks, status_of, the_repo
 
 S = TaskStatus
 REQUEST = "Build Orb Runner: a small arena game where the player collects orbs while a drone chases them."
@@ -74,7 +74,7 @@ async def test_every_department_delivers_and_the_game_is_merged(make_studio, set
     play = by_title["Playtest the game"]
     assert play.result["qa"]["tests_status"] == "PASSED" and play.result["qa"]["images"]
     assert playtest.calls == 2  # gameplay QA and performance QA each played
-    repo = studio.settings.game_repo
+    repo = the_repo(studio.settings)
     report = (await git(repo, "show", "develop:Docs/QA/PlaytestReport.md")).out
     assert "Verdict: **PASSED**" in report and "| Score | 80 of 80 |" in report and "| Average FPS | 58.0 |" in report
     signoff = (await git(repo, "show", "develop:Docs/QA/SignOff.md")).out
@@ -102,7 +102,7 @@ async def test_every_department_delivers_and_the_game_is_merged(make_studio, set
     assert package.result["qa"]["test_run"]["filter"] == "package" and package.result["qa"]["tests_status"] == "PASSED"
     build_doc = (await git(repo, "show", "develop:Docs/Release/Build-0.1.0.md")).out
     assert "Verdict: **PASSED**" in build_doc and "Smoke run | WIN - score 80" in build_doc
-    assert (studio.settings.builds_dir / "v0.1.0" / "Windows" / "ShunyaGame.exe").is_file()
+    assert (studio.settings.builds_dir / "orb-runner" / "v0.1.0" / "Windows" / "ShunyaGame.exe").is_file()
     assert not any("ShunyaGame.exe" in f for f in files)  # the build itself is never committed
     assert all(s.state in (AgentState.IDLE, AgentState.OFFLINE) for s in studio.statuses.all())
     offline = sorted(p.id for p in studio.registry.all() if not p.enabled)
@@ -127,7 +127,7 @@ async def test_failed_content_blocks_instead_of_shipping(make_studio, settings):
     assert by_title["Light the arena"].status == S.PLANNED and by_title["Playtest the game"].status == S.PLANNED
     assert by_title["Write the 0.1.0 release notes"].status == S.PLANNED  # no release notes for a game that was not verified
     assert by_title["Implement the QA autoplay bot"].status == S.DONE  # unrelated work still finished
-    files = (await git(studio.settings.game_repo, "ls-tree", "-r", "--name-only", "develop")).out
+    files = (await git(the_repo(studio.settings), "ls-tree", "-r", "--name-only", "develop")).out
     assert "L_Arena" not in files
     await studio.stop()
 

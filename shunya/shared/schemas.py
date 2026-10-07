@@ -206,6 +206,7 @@ class Task(BaseModel):
     priority: Priority = Priority.MEDIUM
     status: TaskStatus = TaskStatus.BACKLOG
     parent_id: str | None = None
+    game_id: str = ""  # which game (folder / repository) this work belongs to
     dependencies: list[str] = Field(default_factory=list)
     acceptance_criteria: list[str] = Field(default_factory=list)
     assignee_capability: str = "programmer"
@@ -332,6 +333,8 @@ class EventType(StrEnum):
 
     ARTIFACT_CREATED = "ARTIFACT_CREATED"
     COST_RECORDED = "COST_RECORDED"
+    GAME_CREATED = "GAME_CREATED"
+    GAME_PUBLISHED = "GAME_PUBLISHED"
     STUDIO_RECOVERED = "STUDIO_RECOVERED"
 
 
@@ -557,6 +560,18 @@ class KnowledgeChunk(BaseModel):
     start_line: int = 1
     content: str
     vector: list[float] = Field(default_factory=list)
+
+
+class Game(BaseModel):
+    """One game the studio develops: its own folder and git repository."""
+
+    id: str  # slug, also the folder name
+    name: str
+    repo_path: str
+    published_commit: str | None = None  # commit in the studio repository's games/<id>/ folder
+    published_source: str | None = None  # the game's develop commit that was published
+    published_at: datetime | None = None
+    created_at: datetime = Field(default_factory=utcnow)
 
 
 class Project(BaseModel):

@@ -26,7 +26,7 @@ FAKES = dict(build=FakeBuildService(), tests=FakeTestService(), content=FakeCont
 
 
 def _settings(tmp_path: Path, **overrides):
-    return load_settings(data_dir=tmp_path / "data", workspace_dir=tmp_path / "ws", game_repo=tmp_path / "ws" / "ShunyaGame", engine_root=None, **overrides)
+    return load_settings(data_dir=tmp_path / "data", workspace_dir=tmp_path / "ws", engine_root=None, publish_games=False, **overrides)
 
 
 def test_secret_store_round_trip_and_hint(tmp_path, monkeypatch):
@@ -132,7 +132,7 @@ async def test_spending_cap_stops_model_calls_until_the_owner_raises_it(tmp_path
     agent = studio.registry.get("gameplay_programmer_01").model_copy(update={"cost_budget": 1000.0, "token_budget": 10**12, "max_iterations": 1000, "max_tool_calls": 1000})
 
     async def run():
-        sandbox = WorkspaceSandbox(Path(settings.game_repo), isolated=True)
+        sandbox = WorkspaceSandbox(Path((await studio.games.ensure("sandbox")).repo_path), isolated=True)
         return await studio.runner.run(RunRequest(agent=agent, purpose="t", brief="x", output_model=_Report, control=RunControl(), sandbox=sandbox))
 
     first = await run()

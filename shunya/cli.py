@@ -37,9 +37,28 @@ def _serve(args: argparse.Namespace) -> int:
     print(f"  log file       : {log_file}")
     print(f"  model provider : {settings.model_provider}")
     print(f"  unreal engine  : {settings.engine_root or 'not found (builds/tests will be SKIPPED)'}")
-    print(f"  game repo      : {settings.game_repo}")
+    print(f"  games folder   : {settings.games_dir}")
     uvicorn.run(create_app(settings=settings), host=settings.host, port=settings.port, log_level="warning", log_config=None)
     return 0
+
+
+async def _games(args: argparse.Namespace) -> int:
+    """List games, or publish one into the studio repository's games/<slug>/ folder."""
+    from shunya.studio import Studio
+
+    studio = Studio(load_settings())
+    studio.settings.games_dir.mkdir(parents=True, exist_ok=True)
+    studio.games.adopt_existing()
+    try:
+        if args.publish:
+            result = await studio.publisher.publish(args.publish, args.message or "published from the command line")
+            print(result)
+            return 0 if result.get("published") or "no changes" in str(result.get("reason")) else 1
+        for g in studio.games.all():
+            print(f"{g.id:24} {g.repo_path}   published: {g.published_commit[:10] if g.published_commit else '-'}")
+        return 0
+    finally:
+        studio.store.close()
 
 
 def _doctor(_: argparse.Namespace) -> int:
@@ -92,7 +111,7 @@ async def _demo(args: argparse.Namespace) -> int:
         overrides["engine_root"] = None
     studio = await Studio(load_settings(**overrides)).start()
     s = studio.settings
-    print(f"provider={s.model_provider}  unreal={'yes' if s.unreal_available else 'no (SKIPPED builds/tests)'}  repo={s.game_repo}\n")
+    print(f"provider={s.model_provider}  unreal={'yes' if s.unreal_available else 'no (SKIPPED builds/tests)'}  games={s.games_dir}\n")
 
     async def printer() -> None:
         async for e in studio.bus.subscribe():
@@ -167,6 +186,9 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("doctor", help="check that this machine can run the studio")
     backup = sub.add_parser("backup", help="archive the database and artifacts into a zip")
     backup.add_argument("--output", help="target zip path (default: data/backups/shunya-<timestamp>.zip)")
+    games = sub.add_parser("games", help="list games, or publish one into games/<slug>/ of the studio repository")
+    games.add_argument("--publish", metavar="GAME", help="game id (folder name) to publish")
+    games.add_argument("--message", help="commit message")
     args = parser.parse_args(argv)
     if args.cmd == "serve":
         return _serve(args)
@@ -174,6 +196,8 @@ def main(argv: list[str] | None = None) -> int:
         return _doctor(args)
     if args.cmd == "backup":
         return _backup(args)
+    if args.cmd == "games":
+        return asyncio.run(_games(args))
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
     return asyncio.run(_demo(args))
 

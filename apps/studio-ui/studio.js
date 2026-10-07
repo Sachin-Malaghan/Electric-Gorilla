@@ -83,6 +83,7 @@
 
   // ------------------------------------------------------------------ state
   const S = {
+    modalLocked: false,
     state: null, agents: new Map(), sprites: new Map(), meetings: new Map(), lastSeq: 0, selected: null,
     tab: "tasks", empTab: "TASK", empData: null, feed: [], ws: null, refreshTimer: null, hover: null,
   };
@@ -349,10 +350,22 @@
     const panel = $("#panel-tasks"); panel.replaceChildren();
     const tasks = (S.state && S.state.tasks) || [];
     const features = tasks.filter((t) => t.type === "FEATURE" || t.type === "EPIC").reverse();
-    if (!features.length) { panel.append(el("p", "muted", "No work yet. Type a feature request below — the Director, Producer, a programmer, the reviewer, the Build Engineer and QA will take it from there, and you approve the merge.")); return; }
+    const games = (S.state && S.state.games) || [];
+    $("#game-list").replaceChildren(...games.map((g) => { const o = el("option"); o.value = g.name; return o; }));
+    if (games.length) {
+      const card = el("div", "card"); card.append(el("h4", "", "Games"));
+      for (const g of games) {
+        const row = el("div", "game-row"), info = el("div");
+        info.append(el("div", "", g.name), el("div", "sub", g.repo_path), el("div", "sub", g.published_commit ? `committed to games/${g.id} (${g.published_commit.slice(0, 8)})` : "not committed to the studio repository yet"));
+        row.append(info, button("Commit folder", "", async () => { const r = await post(`/games/${g.id}/publish`); alert(r.published ? `Committed to games/${g.id} (${r.commit.slice(0, 8)})` : `Nothing committed: ${r.reason}`); }));
+        card.append(row);
+      }
+      panel.append(card);
+    }
+    if (!features.length) { panel.append(el("p", "muted", "No work yet. Type what you want built below (and a game name if you like). Each game gets its own folder; you approve what gets merged.")); return; }
     for (const f of features) {
       const card = el("div", "card");
-      const head = el("div", "row between"); head.append(el("span", "id", f.id), pill(f.paused ? "PAUSED" : f.status));
+      const head = el("div", "row between"); head.append(el("span", "id", `${f.id} · ${f.game_id || ""}`), pill(f.paused ? "PAUSED" : f.status));
       card.append(head, el("h4", "", f.title));
       const kids = tasks.filter((t) => t.parent_id === f.id);
       if (kids.length) card.append(el("div", "sub", `${kids.filter((k) => k.status === "DONE").length} of ${kids.length} tasks done`));
@@ -473,6 +486,8 @@
       case "AGENT_ESCALATED": return { text: `Escalated to ${p.escalate_to || "human"}: ${p.reason}`, cls: "err" };
       case "AGENT_FAILED": return { text: `Run ${p.status}: ${p.reason}`, cls: "err" };
       case "MESSAGE_SENT": return { text: `${p.type} → ${agentName(p.receiver)}: ${p.summary}` };
+      case "GAME_CREATED": return { text: `New game folder: ${p.folder}`, cls: "hl" };
+      case "GAME_PUBLISHED": return { text: `Game committed to games/${p.game_id} (${String(p.commit).slice(0, 8)})${p.pushed ? " and pushed" : ""}`, cls: "ok" };
       case "STUDIO_RECOVERED": return { text: `Studio restarted — resumed ${p.resumed_features} feature(s)`, cls: "hl" };
       default: return null;
     }
@@ -553,34 +568,55 @@
     panel.append(actions);
   }
 
+  const PROVIDER_NAMES = { anthropic: "Claude (real agents)", openai: "an OpenAI-compatible endpoint (real agents)", scripted: "scripts (no model; only the two built-in requests)" };
+  // Fields for choosing where the agents think: Claude directly, or any OpenAI-compatible endpoint (router, gateway, local server).
+  function providerFields(m, choices) {
+    const provider = el("select", "field");
+    for (const [value, label] of choices) { const o = el("option", "", label); o.value = value; o.selected = m.provider === value; provider.append(o); }
+    const key = el("input", "field"); key.type = "password"; key.autocomplete = "off";
+    const url = el("input", "field"); url.type = "url"; url.placeholder = "https://your-endpoint/v1"; url.value = m.base_url || "";
+    const model = el("input", "field"); model.placeholder = "model id on that endpoint, e.g. gemini-3.7-flash"; model.value = m.provider === "openai" ? m.models.standard : "";
+    const urlLabel = el("label", "sub", "Endpoint URL"), modelLabel = el("label", "sub", "Model");
+    const sync = () => {
+      const custom = provider.value === "openai";
+      for (const n of [url, model, urlLabel, modelLabel]) n.hidden = !custom;
+      key.placeholder = custom ? "API key for that endpoint" : "Anthropic API key (sk-ant-...)";
+      key.disabled = provider.value === "scripted";
+    };
+    provider.addEventListener("change", sync); sync();
+    const payload = () => {
+      const p = { provider: provider.value };
+      if (key.value.trim() && provider.value !== "scripted") p.api_key = key.value.trim();
+      if (provider.value === "openai") { p.base_url = url.value.trim(); p.model = model.value.trim(); }
+      return p;
+    };
+    return { provider, key, url, model, urlLabel, modelLabel, payload };
+  }
+
   // ------------------------------------------------------------------ model settings (the key is write-only)
   async function showModelSettings() {
     const m = await api("/settings/model"), body = el("div");
     const kv = el("div", "kv");
     const add = (k, v) => kv.append(el("span", "", k), el("span", "", v));
-    add("Agents run on", m.provider === "anthropic" ? "Claude (real agents)" : "scripts (no model; only the two built-in requests)");
+    add("Agents run on", PROVIDER_NAMES[m.provider] || m.provider);
+    if (m.base_url) add("Endpoint", m.base_url);
     add("API key", m.key_set ? `${m.key_hint} (from ${m.key_source})` : "not set");
     add("Models", `${m.models.standard} (standard), ${m.models.strong} (hard work), ${m.models.fast} (trivial)`);
     add("Spent so far", money(m.spent_usd));
     add("Spending cap", m.max_spend_usd ? money(m.max_spend_usd) : "none");
     body.append(kv);
-    const key = el("input", "field"); key.type = "password"; key.autocomplete = "off"; key.placeholder = "Anthropic API key (sk-ant-...) - leave empty to keep the current one";
     const cap = el("input", "field"); cap.type = "number"; cap.min = "0"; cap.step = "1"; cap.value = m.max_spend_usd;
-    const provider = el("select", "field");
-    for (const [value, label] of [["anthropic", "Claude - real agents (uses the API key, costs money)"], ["scripted", "Scripts - free, no model"]]) {
-      const o = el("option", "", label); o.value = value; o.selected = m.provider === value; provider.append(o);
-    }
-    key.addEventListener("input", () => { if (key.value.trim()) provider.value = "anthropic"; });  // pasting a key means "use it"
-    body.append(el("label", "sub", "Run agents on"), provider, el("label", "sub", "API key"), key, el("label", "sub", "Spending cap in USD (0 = no cap). Model calls stop when it is reached."), cap);
-    body.append(el("p", "muted", "The key is stored on the server and is never sent back to this page. Real agents spend money on every step; start with a small cap."));
+    const f = providerFields(m, [["anthropic", "Claude - real agents (Anthropic API key, costs money)"], ["openai", "OpenAI-compatible endpoint - real agents (your URL, key and model)"], ["scripted", "Scripts - free, no model"]]);
+    body.append(el("label", "sub", "Run agents on"), f.provider, f.urlLabel, f.url, f.modelLabel, f.model, el("label", "sub", "API key (leave empty to keep the current one)"), f.key,
+      el("label", "sub", "Spending cap in USD (0 = no cap). Model calls stop when it is reached."), cap);
+    body.append(el("p", "muted", "The key is stored on the server and is never sent back to this page. Real agents spend money on every step; start with a small cap."
+      + (m.price_known ? "" : " The price of this model is not known to the studio, so spend is estimated at the highest known rate.")));
     const actions = el("div", "actions");
     actions.append(button("Save", "good", async () => {
-      const payload = { provider: provider.value, max_spend_usd: Number(cap.value || 0) };
-      if (key.value.trim()) payload.api_key = key.value.trim();
-      await post("/settings/model", payload);
-      $("#modal").hidden = true;
+      await post("/settings/model", { ...f.payload(), max_spend_usd: Number(cap.value || 0) });
+      closeModal();
     }));
-    if (m.key_set && m.key_source !== "environment") actions.append(button("Remove stored key", "bad", async () => { await post("/settings/model", { api_key: "", provider: "scripted" }); $("#modal").hidden = true; }));
+    if (m.key_set && m.key_source !== "environment") actions.append(button("Remove stored key", "bad", async () => { await post("/settings/model", { api_key: "", provider: "scripted" }); closeModal(); }));
     body.append(actions);
     openModal("Model and spending", body);
   }
@@ -594,14 +630,54 @@
     if (tab === "activity") renderFeed();
   }
   $("#tabs").addEventListener("click", (ev) => { const b = ev.target.closest("button[data-tab]"); if (b) setTab(b.dataset.tab); });
-  function openModal(title, node) { $("#modal-title").textContent = title; $("#modal-body").replaceChildren(node); $("#modal").hidden = false; }
-  $("#modal-close").addEventListener("click", () => { $("#modal").hidden = true; });
-  $("#modal").addEventListener("click", (ev) => { if (ev.target.id === "modal") $("#modal").hidden = true; });
+  function openModal(title, node, locked = false) {
+    S.modalLocked = locked;
+    $("#modal-title").textContent = title; $("#modal-body").replaceChildren(node);
+    $("#modal-close").hidden = locked; $("#modal").hidden = false;
+  }
+  function closeModal() { S.modalLocked = false; $("#modal").hidden = true; }
+  $("#modal-close").addEventListener("click", () => { if (!S.modalLocked) closeModal(); });
+  $("#modal").addEventListener("click", (ev) => { if (ev.target.id === "modal" && !S.modalLocked) closeModal(); });
+
+  // First thing on a studio with no API key: ask for it. A key in the server's .env skips this entirely.
+  async function welcomeIfNoKey() {
+    let m;
+    try { m = await api("/settings/model"); } catch (_) { return; }
+    let skipped = false;
+    try { skipped = sessionStorage.getItem("shunya_skip_key") === "1"; } catch (_) { /* storage unavailable */ }
+    if (m.key_set || m.any_key_set || skipped) return;
+    const body = el("div", "welcome");
+    body.append(el("h3", "", "Connect your API key"),
+      el("p", "", "The studio's employees are AI agents. Choose the model service they should work with and enter its API key; you can then type what you want built."));
+    const f = providerFields({ ...m, provider: "anthropic" }, [["anthropic", "Claude (Anthropic API key)"], ["openai", "OpenAI-compatible endpoint (your URL, key and model)"]]);
+    const key = f.key;
+    const cap = el("input", "field"); cap.type = "number"; cap.min = "0"; cap.step = "1"; cap.value = m.max_spend_usd;
+    body.append(el("label", "sub", "Model service"), f.provider, f.urlLabel, f.url, f.modelLabel, f.model, el("label", "sub", "API key"), key, el("label", "sub", "Spending cap in USD - model calls stop when it is reached (0 = no cap)"), cap);
+    body.append(el("p", "muted", "The key is stored on the server only. It is never sent back to this page and never shown to the agents. It can also be set in the server's .env file (ANTHROPIC_API_KEY, or SHUNYA_LLM_BASE_URL + SHUNYA_LLM_API_KEY), in which case this prompt does not appear."));
+    const error = el("div", "reason"); error.hidden = true;
+    const actions = el("div", "actions");
+    const start = el("button", "btn good", "Save key and open the studio");
+    start.addEventListener("click", async () => {
+      if (!key.value.trim()) { error.textContent = "Enter the API key, or use the link below to continue without one."; error.hidden = false; return; }
+      start.disabled = true;
+      try {
+        await post("/settings/model", { ...f.payload(), max_spend_usd: Number(cap.value || 0) });
+        key.value = ""; closeModal(); refreshSoon(0); $("#request-input").focus();
+      } catch (e) { error.textContent = e.message; error.hidden = false; start.disabled = false; }
+    });
+    actions.append(start);
+    const skip = el("button", "skip", "Continue without a key - demo mode: scripted employees, only the two built-in requests work");
+    skip.addEventListener("click", () => { try { sessionStorage.setItem("shunya_skip_key", "1"); } catch (_) { /* ignore */ } closeModal(); });
+    body.append(error, actions, skip);
+    openModal("Welcome to Shunya Studios", body, true);
+    key.focus();
+  }
   $("#request-form").addEventListener("submit", async (ev) => {
     ev.preventDefault();
     const input = $("#request-input"), text = input.value.trim();
     if (text.length < 3) return;
-    try { await post("/tasks", { request: text }); input.value = ""; setTab("tasks"); refreshSoon(0); } catch (e) { alert(e.message); }
+    const game = $("#game-input").value.trim();
+    try { await post("/tasks", game ? { request: text, game } : { request: text }); input.value = ""; setTab("tasks"); refreshSoon(0); } catch (e) { alert(e.message); }
   });
 
   // ------------------------------------------------------------------ data flow
@@ -652,6 +728,7 @@
     recent.forEach((e) => { const d = describe(e); if (d) S.feed.push({ time: e.timestamp, who: e.agent_id, ...d }); });
     S.lastSeq = state.last_seq;
     connect();
+    welcomeIfNoKey();
     setInterval(() => { if (S.tab === "employee" && S.selected) loadEmployee(); }, 2500);
     requestAnimationFrame(frame);
   }

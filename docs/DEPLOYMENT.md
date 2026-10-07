@@ -19,10 +19,14 @@ Put the folder somewhere with a **short path** (for example `C:\studio`): Unreal
 |---|---|
 | `SHUNYA_API_TOKEN` | Set it. Every API call and the live event stream then need the token. The office page asks for it once and remembers it. Required if you listen on anything other than `127.0.0.1`. |
 | `ANTHROPIC_API_KEY` | The key the employees work with. Set it here, or enter it under **Model** in the office (stored in `data/secrets.json` on the server, never sent back to the browser, never logged). With a key present the studio uses real Claude agents automatically. |
+| `SHUNYA_LLM_BASE_URL`, `SHUNYA_LLM_API_KEY` | Instead of an Anthropic key: an OpenAI-compatible endpoint (`https://host/v1`) and its key. Also enterable under **Model**. TLS uses the operating system's certificate store. |
+| `SHUNYA_MODEL_FAST`, `SHUNYA_MODEL_STANDARD`, `SHUNYA_MODEL_STRONG` | Model ids for trivial / normal / hard work. Required for an OpenAI-compatible endpoint unless one model is chosen under **Model**. |
+| `SHUNYA_MODEL_PRICE_INPUT`, `SHUNYA_MODEL_PRICE_OUTPUT` | USD per million tokens for models the studio has no price for. Unset, spend is estimated at the highest known rate, so the cap is reached early rather than late. |
 | `SHUNYA_MAX_SPEND_USD` | Hard cap on total model spend (default 25). When it is reached no further model call is made and work escalates to you; raise it under **Model** or here. 0 removes the cap. |
 | `SHUNYA_MODEL_PROVIDER` | Normally leave unset. `scripted` forces the free scripted employees even when a key exists; `anthropic` requires a key. |
 | `SHUNYA_AUTO_APPROVE_MAX_RISK` | Leave empty to approve every merge yourself, or `LOW` to let policy approve low-risk ones. Packaged builds always come to you. |
 | `SHUNYA_MAX_ACTIVE_FEATURES` | How many feature requests may be in flight (default 3). More are refused with HTTP 429. |
+| `SHUNYA_PUBLISH_GAMES`, `SHUNYA_PUBLISH_PUSH` | When a request finishes, the game's source is committed into this repository under `games/<name>/` (default on; only that folder is ever committed). `SHUNYA_PUBLISH_PUSH=true` also runs `git push origin HEAD`, which needs git credentials for the remote on the server. |
 | `SHUNYA_WORKSPACE_DIR`, `SHUNYA_DATA_DIR` | Where the game repository / worktrees / builds and the database / artifacts / logs live. |
 | `DATABASE_URL`, `REDIS_URL` | PostgreSQL and Redis instead of SQLite and the in-process bus (see `infrastructure/docker`). Not exercised yet. |
 | `SHUNYA_BRIDGE_TOKEN` | Must match `Token` in the game's `Config/DefaultEngine.ini` if you use the live-editor bridge. Change both from the default. |
@@ -35,7 +39,7 @@ Put the folder somewhere with a **short path** (for example `C:\studio`): Unreal
 
 The server refuses to start on a non-loopback address without a token. To keep it running across logins, register it as a scheduled task or a service that runs that command in the studio folder.
 
-- Office: `http://127.0.0.1:8400`
+- Office: `http://127.0.0.1:8400`. On a server with no API key it opens with a prompt for the key; a key in `.env` skips the prompt.
 - Liveness: `GET /health` (no token; returns 503 if the database is unreachable)
 - Operations: `GET /system` (token; versions, paths, event sequence, child processes, task counts, limits)
 - Logs: `data/logs/studio.log`, rotated at 5 MB, five kept. One line per API request (`shunya.access`), warnings for refused tokens.
@@ -73,11 +77,11 @@ Costs to expect: a GPU Windows instance is billed by the hour whether or not age
 .\.venv\Scripts\shunya backup                 # data/backups/shunya-<timestamp>.zip  (database + artifacts)
 ```
 
-Safe while the studio runs. The game itself is a git repository at `workspace/ShunyaGame`: back it up by adding a remote and pushing `develop` and `main`. To restore, stop the studio, unzip `shunya.db` and `artifacts/` into the data directory, and start it again.
+Safe while the studio runs. Each game is a git repository at `workspace/games/<name>` with the full per-task history; its source snapshot is also committed to `games/<name>/` in this repository. For the full history, add a remote to the game repository and push `develop` and `main`. To restore, stop the studio, unzip `shunya.db` and `artifacts/` into the data directory, and start it again.
 
 ## 6. Shipping the game
 
-The release role packages the game with Unreal Automation Tool (build, cook, stage, pak) into `workspace/builds/v<version>/Windows/`, starts the packaged executable with the QA bot, and records the result. That folder runs on a PC without Unreal Engine installed. The merge that records a packaged build always needs your approval, whatever the auto-approve setting. Builds are Development configuration; a Shipping configuration and installers are not set up.
+The release role packages the game with Unreal Automation Tool (build, cook, stage, pak) into `workspace/builds/<game>/v<version>/Windows/`, starts the packaged executable with the QA bot, and records the result. That folder runs on a PC without Unreal Engine installed. The merge that records a packaged build always needs your approval, whatever the auto-approve setting. Builds are Development configuration; a Shipping configuration and installers are not set up.
 
 ## 7. Security notes
 

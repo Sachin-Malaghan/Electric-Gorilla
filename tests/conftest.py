@@ -5,7 +5,15 @@ import json
 import re
 from pathlib import Path
 
+import os
+
 import pytest
+
+# Tests never read the developer's .env or real credentials.
+os.environ["SHUNYA_NO_DOTENV"] = "1"
+for _name in ("SHUNYA_LLM_BASE_URL", "SHUNYA_LLM_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "SHUNYA_MODEL_PROVIDER", "SHUNYA_MODEL_FAST",
+              "SHUNYA_MODEL_STANDARD", "SHUNYA_MODEL_STRONG", "SHUNYA_MAX_SPEND_USD", "SHUNYA_MODEL_PRICE_INPUT", "SHUNYA_MODEL_PRICE_OUTPUT", "SHUNYA_API_TOKEN"):
+    os.environ.pop(_name, None)
 
 from shunya.config import load_settings
 from shunya.core.models.demo_scripts import demo_scripts
@@ -150,7 +158,7 @@ def settings(tmp_path: Path):
     return load_settings(
         data_dir=tmp_path / "data",
         workspace_dir=tmp_path / "ws",
-        game_repo=tmp_path / "ws" / "ShunyaGame",
+        publish_games=False,  # tests must never commit into the real studio repository
         engine_root=None,
         model_provider="scripted",
         database_url="",
@@ -175,6 +183,18 @@ def make_studio(settings):
     # teardown is sync; studios are stopped explicitly by tests or here via a fresh loop-safe close
     for s in studios:
         s.store.close()
+
+
+def the_repo(settings) -> Path:
+    """The folder of the (only) game a test created."""
+    folders = sorted(p for p in settings.games_dir.iterdir() if (p / ".git").exists())
+    assert len(folders) == 1, [f.name for f in folders]
+    return folders[0]
+
+
+async def sandbox_game(studio) -> Path:
+    """A game folder for tests that exercise tools directly, without a feature request."""
+    return Path((await studio.games.ensure("sandbox")).repo_path)
 
 
 async def wait_for(predicate, timeout: float = 20.0, interval: float = 0.02):

@@ -26,6 +26,10 @@ __all__ = [
 
 def create_provider(settings, api_key: str | None = None):
     """Factory: the configured IModelProvider."""
+    if settings.model_provider == "openai":
+        from shunya.core.models.openai_compat_provider import OpenAICompatProvider
+
+        return OpenAICompatProvider(base_url=settings.llm_base_url, api_key=api_key or "")
     if settings.model_provider == "anthropic":
         from shunya.core.models.anthropic_provider import AnthropicProvider
 
@@ -35,4 +39,4 @@ def create_provider(settings, api_key: str | None = None):
         from shunya.core.models.demo_scripts import demo_scripts
 
         return ScriptedProvider(demo_scripts(inject_compile_error=settings.demo_inject_compile_error), step_delay=settings.demo_step_delay)
-    raise ValueError(f"unknown model provider '{settings.model_provider}' (expected anthropic | scripted)")
+    raise ValueError(f"unknown model provider '{settings.model_provider}' (expected anthropic | openai | scripted)")

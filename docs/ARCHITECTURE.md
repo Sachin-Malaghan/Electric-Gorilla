@@ -106,8 +106,13 @@ Every task carries a `track`, chosen by the Producer, and the same status-driven
 
 **The Orb Runner screenplay** (`shunya/demo/orb_runner/`) is the scripted provider's second request: 33 tasks that give 31 employees across all nine departments real work - design documents, C++ in six steps, materials, sounds, a level, lighting, a cinematic, a playtest, a performance check, a regression run, a sign-off, a manual and release notes. Nine roles have nothing real to do in a game this small and stay offline (rigging, VFX, landscape, foliage, optimisation, graphics, networking, CI, crash investigation).
 
+## Games as folders
+
+A request names a game (explicitly, or derived from its text). `GameRegistry` creates `workspace/games/<slug>/` from the template as an independent git repository the first time, and continues it afterwards; folders found on disk are adopted on start, so the folders are the source of truth. Every task carries `game_id`, worktrees stay in the short shared `workspace/wt/` directory, and packaged builds go to `workspace/builds/<slug>/`. When a request finishes, `GamePublisher` exports the game's `develop` snapshot into `games/<slug>/` of the studio repository and commits exactly that folder (optionally pushing), so finished games are versioned next to the studio.
+
 ## Operating it (see [DEPLOYMENT.md](DEPLOYMENT.md))
 
+- **Model key and cap.** The page asks for the Anthropic key when none is configured (`.env` is the back door); it is stored server-side and write-only. A studio-wide spending cap stops model calls when reached.
 - **Access.** `SHUNYA_API_TOKEN` puts every route and the WebSocket behind one shared token (header, cookie or query); `/health` stays open. The server refuses to listen on a non-loopback address without it.
 - **Process trees.** Every process the studio starts is registered in `core/processes.py` and killed as a tree on timeout, cancellation and shutdown. Before this, cancelling a task could leave UnrealBuildTool's compilers running.
 - **Logs and health.** Rotating `data/logs/studio.log` with an access line per request; `/health` for liveness, `/system` for the owner.

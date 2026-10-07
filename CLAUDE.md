@@ -27,9 +27,11 @@ Compile the game template directly (UE 5.8 Launcher build):
 - **No shell tool, no merge tool.** New agent capabilities are typed tools in `shunya/tools/` with `required_permissions`, registered in `tools/registry.py`.
 - **All agent file access goes through `WorkspaceSandbox.resolve`.** Never open a path from tool arguments directly.
 - **Never report an unverified build or test as passed.** No engine → `SKIPPED`; toolchain failure → `ERROR`.
+- **The API key is write-only.** It lives in the environment or `data/secrets.json` (`core/secrets.py`); never return it from an endpoint, log it, or put it in a prompt.
 - **Only `core/models/anthropic_provider.py` imports a vendor SDK.** Everything else uses `IModelProvider`.
 - **The UI never invents activity** and inserts backend text with `textContent` only (agent output is untrusted).
-- `unreal/ShunyaGame` is the *template*. The studio works on a copy at `workspace/ShunyaGame` (its own git repo, branches `main` / `develop` / `agent/<TASK>`), created on first start. Change the template to change what new studios start from.
+- `unreal/ShunyaGame` is the *template*. Each game is a copy at `workspace/games/<slug>` (its own git repo, branches `main` / `develop` / `agent/<TASK>`), created when a request first names it (`core/games.py`). Tasks carry `game_id`; repository-level git operations go through `games.git(game_id)`. Change the template to change what new games start from.
+- `games/<slug>/` in this repository holds published snapshots, committed by the studio itself (`GamePublisher`, only ever that folder). Do not hand-edit them; tests set `publish_games=False` so they never commit here.
 - Keep `workspace/` paths short: Unreal build output nests ~150 characters below a worktree and Windows allows 260.
 - Do not round-trip source files through PowerShell `Get-Content` / `Set-Content`: it corrupts non-ASCII characters. Edit with Python or the editor tools.
 - Tests use `FakeBuildService` / `FakeTestService` / `FakeContentService` / `FakePlaytestService` (`tests/conftest.py`) and the scripted provider; pipeline tests drive real git worktrees in a temp directory.

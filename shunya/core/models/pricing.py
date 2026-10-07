@@ -14,8 +14,21 @@ PRICES: dict[str, tuple[float, float, float, float]] = {
 }
 
 
+# Prices the owner configured for models outside the table (e.g. models behind an OpenAI-compatible router).
+CUSTOM_PRICES: dict[str, tuple[float, float, float, float]] = {}
+
+
+def set_custom_price(models: list[str], input_per_mtok: float, output_per_mtok: float) -> None:
+    for m in models:
+        if m and m not in PRICES:
+            if input_per_mtok > 0 or output_per_mtok > 0:
+                CUSTOM_PRICES[m] = (input_per_mtok, output_per_mtok, input_per_mtok * 0.25, input_per_mtok)
+            else:
+                CUSTOM_PRICES.pop(m, None)
+
+
 def cost_usd(model: str, usage: Usage) -> float:
-    price = PRICES.get(model)
+    price = PRICES.get(model) or CUSTOM_PRICES.get(model)
     if price is None:
         # unknown / local / scripted models are free; real unknown cloud models are priced like Opus
         price = (0.0, 0.0, 0.0, 0.0) if model.startswith(("scripted", "local")) else PRICES["claude-opus-5-5"]

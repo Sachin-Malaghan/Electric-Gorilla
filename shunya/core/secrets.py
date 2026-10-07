@@ -16,6 +16,9 @@ from pathlib import Path
 from shunya.core.persistence import Store
 
 KEY_NAME = "anthropic_api_key"
+LLM_KEY_NAME = "llm_api_key"
+LLM_URL_NAME = "llm_base_url"
+LLM_MODEL_NAME = "llm_model"
 
 
 class SecretStore:
@@ -53,6 +56,18 @@ class SecretStore:
             return env, "environment"
         stored = self.get(KEY_NAME)
         return (stored, "office settings") if stored else ("", "")
+
+
+    def llm_key(self) -> tuple[str, str]:
+        """Key for an OpenAI-compatible endpoint: environment first, then what the owner entered in the office."""
+        for name in ("SHUNYA_LLM_API_KEY", "OPENAI_API_KEY"):
+            if os.environ.get(name):
+                return os.environ[name], "environment"
+        stored = self.get(LLM_KEY_NAME)
+        return (stored, "office settings") if stored else ("", "")
+
+    def key_for(self, provider: str) -> tuple[str, str]:
+        return self.llm_key() if provider == "openai" else self.anthropic_key() if provider == "anthropic" else ("", "")
 
 
 def hint(key: str) -> str:

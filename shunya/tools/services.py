@@ -13,6 +13,7 @@ from pathlib import Path
 
 from shunya.config import Settings
 from shunya.core.artifacts import FileArtifactStore
+from shunya.core.games import GameRegistry
 from shunya.core.interfaces import IEventBus, IUnrealBridge
 from shunya.core.persistence import Store
 from shunya.knowledge import HybridRetriever
@@ -36,6 +37,7 @@ class ToolServices:
     content: IContentService
     playtest: IPlaytestService
     packager: IPackageService
+    games: GameRegistry
     studio_docs: list[Path] = field(default_factory=list)
     _retrievers: dict[str, tuple[float, HybridRetriever]] = field(default_factory=dict)
     _develop_build: asyncio.Lock = field(default_factory=asyncio.Lock)
@@ -100,8 +102,9 @@ class ToolServices:
         """
         if isinstance(self.build, UnavailableBuildService) or is_built(project_dir):
             return
-        main = self.settings.game_repo
-        if project_dir.resolve() != main.resolve() and main.is_dir() and source_fingerprint(main) == source_fingerprint(project_dir):
+        game = self.games.for_task(task_id)
+        main = Path(game.repo_path) if game else None
+        if main is not None and project_dir.resolve() != main.resolve() and main.is_dir() and source_fingerprint(main) == source_fingerprint(project_dir):
             async with self._develop_build:  # several waiting tasks must trigger one develop build, not one each
                 if not is_built(main):
                     rec = await self.run_build(project_dir=main, task_id=task_id, agent_id="build_engineer_01", trace_id=trace_id)

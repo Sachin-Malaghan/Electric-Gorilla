@@ -20,7 +20,7 @@ from shunya.shared.schemas import (
 from shunya.studio import Studio
 from shunya.tools.git_tools import git
 
-from .conftest import FakeBuildService, FakeTestService, child_tasks, run_to_approval, status_of, wait_for
+from .conftest import FakeBuildService, FakeTestService, child_tasks, run_to_approval, status_of, the_repo, wait_for
 
 S = TaskStatus
 HEADER = "Source/ShunyaGame/Public/Components/HealthComponent.h"
@@ -45,7 +45,7 @@ async def test_feature_goes_from_request_to_merged_with_evidence(make_studio):
     assert meeting.status == "CLOSED" and set(meeting.participants) >= {"producer_01", "studio_director_01"} and meeting.decisions
 
     # Programmer worked only in the isolated worktree: develop and main are untouched before approval
-    repo = studio.settings.game_repo
+    repo = the_repo(studio.settings)
     assert await _show(repo, "develop", HEADER) is None and await _show(repo, "main", HEADER) is None
     assert await _show(repo, task.branch, HEADER) is not None
 
@@ -211,7 +211,7 @@ async def test_editor_side_effects_on_protected_files_never_reach_the_commit(mak
     assert "DefaultInput.ini" not in studio.artifacts.read_text(approval.diff_artifact_id)
     await studio.approvals.decide(approval.id, granted=True, decided_by="studio_owner")
     await wait_for(lambda: status_of(studio, feature.id) == S.DONE)
-    assert await _show(studio.settings.game_repo, "develop", "Config/DefaultInput.ini") is None
+    assert await _show(the_repo(studio.settings), "develop", "Config/DefaultInput.ini") is None
     await studio.stop()
 
 
@@ -221,7 +221,7 @@ async def test_human_rejection_cancels_and_never_merges(make_studio):
     task = child_tasks(studio, feature.id)[0]
     await studio.approvals.decide(approval.id, granted=False, decided_by="studio_owner", comment="not now")
     await wait_for(lambda: status_of(studio, task.id) == S.CANCELLED)
-    assert await _show(studio.settings.game_repo, "develop", HEADER) is None
+    assert await _show(the_repo(studio.settings), "develop", HEADER) is None
     assert studio.store.approvals.get(approval.id).status == ApprovalStatus.REJECTED
     await studio.stop()
 
@@ -319,7 +319,7 @@ async def test_state_survives_restart_and_pipeline_resumes(make_studio, settings
         await wait_for(lambda: reborn.orchestrator.is_running(feature.id))
         await reborn.approvals.decide(approval.id, granted=True, decided_by="studio_owner")
         await wait_for(lambda: status_of(reborn, feature.id) == S.DONE)
-        assert await _show(settings.game_repo, "develop", HEADER) is not None
+        assert await _show(the_repo(settings), "develop", HEADER) is not None
     finally:
         await reborn.stop()
 

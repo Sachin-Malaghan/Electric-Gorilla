@@ -35,11 +35,20 @@ class Settings(BaseModel):
     model_strong: str = "claude-opus-5-5"
     model_fast: str = "claude-opus-5-5"
     model_fallbacks: bool = True
+    # OpenAI-compatible endpoint (a router, gateway or local server), used when model_provider == "openai"
+    llm_base_url: str = ""
+    # USD per million tokens for models the built-in price table does not know (0 = estimate at the most expensive known rate)
+    model_price_input: float = 0.0
+    model_price_output: float = 0.0
+    models_pinned: bool = False  # True when SHUNYA_MODEL_* were set explicitly
 
     # Unreal
     engine_root: Path | None = None
     game_template: Path = REPO_ROOT / "unreal" / "ShunyaGame"
-    game_repo: Path = REPO_ROOT / "workspace" / "ShunyaGame"
+    # Finished games are committed into <publish_repo>/games/<slug>/ (only that folder is ever committed).
+    publish_games: bool = True
+    publish_repo: Path | None = REPO_ROOT
+    publish_push: bool = False
     game_project_name: str = "ShunyaGame"
     bridge_url: str = "http://127.0.0.1:30777"
     bridge_token: str = "shunya-dev-token"
@@ -92,6 +101,11 @@ class Settings(BaseModel):
         return self.workspace_dir / "wt"
 
     @property
+    def games_dir(self) -> Path:
+        """One folder (and git repository) per game."""
+        return self.workspace_dir / "games"
+
+    @property
     def builds_dir(self) -> Path:
         """Packaged game builds (not committed anywhere)."""
         return self.workspace_dir / "builds"
@@ -122,7 +136,8 @@ def _default_engine_root() -> Path | None:
 
 
 def load_settings(**overrides) -> Settings:
-    _load_dotenv(REPO_ROOT / ".env")
+    if not os.environ.get("SHUNYA_NO_DOTENV"):  # the test suite sets this so a developer's real key is never used by tests
+        _load_dotenv(REPO_ROOT / ".env")
     env = os.environ
     values: dict = {}
     mapping = {
@@ -134,7 +149,6 @@ def load_settings(**overrides) -> Settings:
         "SHUNYA_MODEL_STANDARD": "model_standard",
         "SHUNYA_MODEL_STRONG": "model_strong",
         "SHUNYA_MODEL_FAST": "model_fast",
-        "SHUNYA_GAME_REPO": "game_repo",
         "SHUNYA_BRIDGE_URL": "bridge_url",
         "SHUNYA_BRIDGE_TOKEN": "bridge_token",
         "SHUNYA_HOST": "host",
@@ -145,12 +159,18 @@ def load_settings(**overrides) -> Settings:
         "SHUNYA_MAX_ACTIVE_FEATURES": "max_active_features",
         "SHUNYA_LOG_LEVEL": "log_level",
         "SHUNYA_MAX_SPEND_USD": "max_spend_usd",
+        "SHUNYA_LLM_BASE_URL": "llm_base_url",
+        "SHUNYA_MODEL_PRICE_INPUT": "model_price_input",
+        "SHUNYA_MODEL_PRICE_OUTPUT": "model_price_output",
     }
     for key, field in mapping.items():
         if env.get(key):
             values[field] = env[key]
     if env.get("SHUNYA_DEMO_INJECT_ERROR"):
         values["demo_inject_compile_error"] = env["SHUNYA_DEMO_INJECT_ERROR"].lower() in ("1", "true", "yes")
+    for key, field in (("SHUNYA_PUBLISH_GAMES", "publish_games"), ("SHUNYA_PUBLISH_PUSH", "publish_push")):
+        if env.get(key):
+            values[field] = env[key].lower() in ("1", "true", "yes")
     if env.get("SHUNYA_DEMO_STEP_DELAY"):
         values["demo_step_delay"] = float(env["SHUNYA_DEMO_STEP_DELAY"])
     if env.get("SHUNYA_MODEL_FALLBACKS"):
@@ -159,9 +179,8 @@ def load_settings(**overrides) -> Settings:
         values["engine_root"] = None
     else:
         values["engine_root"] = _default_engine_root()
+    values["models_pinned"] = any(env.get(k) for k in ("SHUNYA_MODEL_STANDARD", "SHUNYA_MODEL_STRONG", "SHUNYA_MODEL_FAST"))
     values["provider_pinned"] = bool(env.get("SHUNYA_MODEL_PROVIDER")) or "model_provider" in overrides
     values.update(overrides)
     settings = Settings(**values)
-    if "workspace_dir" in values and "game_repo" not in values:
-        settings.game_repo = settings.workspace_dir / settings.game_project_name
     return settings

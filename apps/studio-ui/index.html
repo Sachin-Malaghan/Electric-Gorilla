@@ -29,6 +29,8 @@
       <div id="tooltip" hidden></div>
       <div id="conn" class="conn off">offline</div>
       <form id="request-form" autocomplete="off">
+        <input id="game-input" type="text" maxlength="60" list="game-list" placeholder="Game name (optional)" title="A new name creates a new game folder; an existing name continues that game. Empty = named from the request.">
+        <datalist id="game-list"></datalist>
         <input id="request-input" type="text" maxlength="2000"
                placeholder="Tell the studio what to build…  e.g. Create a simple Unreal health component.">
         <button type="submit">Send to Director</button>
