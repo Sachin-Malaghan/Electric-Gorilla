@@ -201,6 +201,27 @@ def parse_automation_report(report_dir: Path, log: str) -> list[TestCaseResult]:
     return results
 
 
+_CRASH_LINE = re.compile(r"LogWindows: Error: (.*)$")
+
+
+def parse_crash(log: str, project_name: str = "") -> list[str]:
+    """If the editor crashed, the exception and the call-stack frames worth reading (the project's own first)."""
+    at = log.find("=== Critical error: ===")
+    if at < 0:
+        at = log.find("Fatal error!")
+    if at < 0:
+        return []
+    lines = [m.group(1).strip() for m in (_CRASH_LINE.search(raw) for raw in log[at:at + 20_000].splitlines()) if m]
+    lines = [ln for ln in lines if ln and "Critical error" not in ln and ln != "Fatal error!"]
+    head = [ln for ln in lines if not ln.startswith("[Callstack]")][:4]
+    frames = [ln.replace("[Callstack] ", "") for ln in lines if ln.startswith("[Callstack]")]
+    own = [f for f in frames if project_name and f"-{project_name}." in f][:6]
+    return ["THE EDITOR CRASHED while running the tests - this is a bug in the game code or the test, not in the tooling.", *head,
+            *([f"in project code: {f}" for f in own] or [f"at: {f}" for f in frames[:5]]),
+            "Typical causes in headless tests: calling engine functions that need a world (Super::TakeDamage, GetWorld()->..., timers, SpawnActor) "
+            "on an object made with NewObject, or using a null component/owner. Guard the pointer or test the logic without the engine call."]
+
+
 class UnrealTestService(ITestService):
     def __init__(self, engine_root: Path, project_name: str, scratch_dir: Path, timeout_s: int = 1200):
         self.engine_root = engine_root
@@ -236,7 +257,12 @@ class UnrealTestService(ITestService):
         results = parse_automation_report(report_dir, log)
         passed = sum(1 for r in results if r.result == "PASS")
         failed = sum(1 for r in results if r.result == "FAIL")
-        if timed_out:
+        crash = parse_crash(log, self.project_name)
+        if crash:  # tests that finished before the crash do not make the run a pass
+            status = "ERROR"
+            results.append(TestCaseResult(name="(editor crash)", result="FAIL", messages=crash))
+            failed += 1
+        elif timed_out:
             status = "ERROR"
             results.append(TestCaseResult(name="(runner)", result="FAIL", messages=[f"test run exceeded {self.timeout_s}s"]))
         elif not results:

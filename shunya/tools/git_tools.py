@@ -92,6 +92,26 @@ class GitService:
                 await git(self.repo, "worktree", "add", "-b", branch, str(path), DEVELOP)
         return branch, path
 
+    async def sync_with_develop(self, worktree: Path) -> bool:
+        """Bring a task's worktree up to date with develop (work merged since it branched). True if anything came in.
+
+        Uncommitted work is committed first so nothing is lost; a conflicting merge is abandoned and the worktree left as it was.
+        """
+        if not (worktree / ".git").exists():
+            return False
+        async with self._repo_lock:
+            if (await git(worktree, "merge-base", "--is-ancestor", DEVELOP, "HEAD", check=False)).code == 0:
+                return False
+            await self.discard_protected_changes(worktree)
+            await git(worktree, "add", "-A")
+            if (await git(worktree, "diff", "--cached", "--quiet", check=False)).code != 0:
+                await git(worktree, "-c", "user.name=Shunya Studio", "-c", "user.email=studio@shunya.local", "commit", "-m", "Work in progress before syncing with develop")
+            merged = await git(worktree, "-c", "user.name=Shunya Studio", "-c", "user.email=studio@shunya.local", "merge", "--no-edit", DEVELOP, check=False)
+            if merged.code != 0:
+                await git(worktree, "merge", "--abort", check=False)
+                return False
+            return True
+
     async def remove_worktree(self, task_id: str) -> None:
         path = self.worktrees_dir / task_id
         async with self._repo_lock:

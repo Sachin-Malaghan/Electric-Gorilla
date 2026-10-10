@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from pathlib import Path
 from typing import Any
 
 from shunya.config import Settings
@@ -186,6 +187,12 @@ class Orchestrator:
                     await self.retry(c.id, note)
             self._spawn(task.id, self._run_feature(task.id))
         else:
+            if task.worktree:  # fixes merged since the task branched (often the reason for the retry) must be visible to it
+                try:
+                    if await self.games.git(task.game_id).sync_with_develop(Path(task.worktree)):
+                        task.feedback.append("[Studio] Your workspace now includes the work merged into develop since you last ran; re-verify against it.")
+                except Exception:  # noqa: BLE001 - a retry must not fail because the sync could not be done
+                    log.exception("could not sync %s with develop", task.id)
             await self.tasks.transition(task, S.IN_PROGRESS if task.worktree else S.PLANNED, actor="user", reason="retry")
             parent = self.tasks.repo.get(task.parent_id) if task.parent_id else None
             if parent and parent.status == S.BLOCKED:
