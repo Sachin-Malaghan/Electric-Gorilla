@@ -1,0 +1,78 @@
+{
+  "kind": "level_additions",
+  "level": "L_Arena",
+  "actors": [
+    {
+      "type": "directional_light",
+      "label": "SunLight",
+      "location": [
+        0.0,
+        0.0,
+        1000.0
+      ],
+      "rotation": [
+        -45.0,
+        35.0,
+        0.0
+      ],
+      "intensity": 10.0
+    },
+    {
+      "type": "sky_light",
+      "label": "SkyLight",
+      "location": [
+        0.0,
+        0.0,
+        1000.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "intensity": 1.0
+    },
+    {
+      "type": "sky_atmosphere",
+      "label": "SkyAtmosphere",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "type": "exponential_height_fog",
+      "label": "HeightFog",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "type": "post_process",
+      "label": "PostProcessVolume",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "kind": "material",
+  "name": "M_Warrior",
+  "folder": "Materials",
+  "base_color": [
+    0.15,
+    0.3,
+    0.5
+  ],
+  "emissive_color": [
+    0.1,
+    0.25,
+    0.45
+  ],
+  "emissive_strength": 0.5,
+  "metallic": 0.85,
+  "roughness": 0.35,
+  "texture": null,
+  "uv_tiling": 1.0
+}

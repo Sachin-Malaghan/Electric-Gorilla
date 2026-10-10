@@ -1,0 +1,7 @@
+{
+  "kind": "texture",
+  "name": "T_Wood",
+  "folder": "Materials",
+  "source": "SourceArt/Generated/T_Wood.png",
+  "srgb": true
+}

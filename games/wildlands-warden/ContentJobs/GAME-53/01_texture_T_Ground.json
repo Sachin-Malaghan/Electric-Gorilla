@@ -1,0 +1,7 @@
+{
+  "kind": "texture",
+  "name": "T_Ground",
+  "folder": "Materials",
+  "source": "SourceArt/Generated/T_Ground.png",
+  "srgb": true
+}

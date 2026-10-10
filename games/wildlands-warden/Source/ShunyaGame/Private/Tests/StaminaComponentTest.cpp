@@ -1,0 +1,141 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "CoreMinimal.h"
+#include "Misc/AutomationTest.h"
+#include "Components/StaminaComponent.h"
+
+#if WITH_DEV_AUTOMATION_TESTS
+
+namespace ShunyaCombatTests
+{
+	constexpr EAutomationTestFlags Flags = EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStaminaComponentDefaultsTest, "ShunyaGame.Combat.Stamina.Defaults", ShunyaCombatTests::Flags)
+bool FStaminaComponentDefaultsTest::RunTest(const FString& Parameters)
+{
+	UStaminaComponent* StaminaComp = NewObject<UStaminaComponent>();
+	TestNotNull(TEXT("StaminaComponent should be created"), StaminaComp);
+	if (!StaminaComp)
+	{
+		return false;
+	}
+
+	TestEqual(TEXT("Default MaxStamina should be 100"), StaminaComp->GetMaxStamina(), 100.0f);
+	TestEqual(TEXT("Default CurrentStamina should be 100"), StaminaComp->GetStamina(), 100.0f);
+	TestEqual(TEXT("Default StaminaRegenRate should be 15/s"), StaminaComp->GetStaminaRegenRate(), 15.0f);
+	TestEqual(TEXT("Default RegenDelay should be 1.0s"), StaminaComp->GetRegenDelay(), 1.0f);
+	TestEqual(TEXT("Default StaminaPercent should be 1.0"), StaminaComp->GetStaminaPercent(), 1.0f);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStaminaComponentConsumptionTest, "ShunyaGame.Combat.Stamina.ConsumptionValidation", ShunyaCombatTests::Flags)
+bool FStaminaComponentConsumptionTest::RunTest(const FString& Parameters)
+{
+	UStaminaComponent* StaminaComp = NewObject<UStaminaComponent>();
+	TestNotNull(TEXT("StaminaComponent should be created"), StaminaComp);
+	if (!StaminaComp)
+	{
+		return false;
+	}
+
+	// Invalid consumption amounts rejected
+	TestFalse(TEXT("Negative stamina consumption rejected"), StaminaComp->ConsumeStamina(-10.0f));
+	TestFalse(TEXT("Zero stamina consumption rejected"), StaminaComp->ConsumeStamina(0.0f));
+	TestEqual(TEXT("Stamina unchanged after invalid consumption"), StaminaComp->GetStamina(), 100.0f);
+
+	// Valid consumption
+	TestTrue(TEXT("Has enough stamina for 30"), StaminaComp->HasEnoughStamina(30.0f));
+	TestTrue(TEXT("Consume 30 stamina"), StaminaComp->ConsumeStamina(30.0f));
+	TestEqual(TEXT("Stamina is now 70"), StaminaComp->GetStamina(), 70.0f);
+
+	// Insufficient stamina validation: prevent action and don't reduce stamina
+	TestFalse(TEXT("HasEnoughStamina returns false for 80 when having 70"), StaminaComp->HasEnoughStamina(80.0f));
+	TestFalse(TEXT("ConsumeStamina fails for 80 when having 70"), StaminaComp->ConsumeStamina(80.0f));
+	TestEqual(TEXT("Stamina remains 70 when action prevented"), StaminaComp->GetStamina(), 70.0f);
+
+	// Deplete exactly to 0
+	int32 DepletedCallCount = 0;
+	StaminaComp->OnStaminaDepletedNative.AddLambda([&DepletedCallCount]()
+	{
+		DepletedCallCount++;
+	});
+
+	TestTrue(TEXT("Consume remaining 70 stamina"), StaminaComp->ConsumeStamina(70.0f));
+	TestEqual(TEXT("Stamina is now 0"), StaminaComp->GetStamina(), 0.0f);
+	TestEqual(TEXT("Depleted delegate fired"), DepletedCallCount, 1);
+
+	// Cannot consume when at 0
+	TestFalse(TEXT("Cannot consume any stamina when at 0"), StaminaComp->ConsumeStamina(1.0f));
+	TestEqual(TEXT("Stamina cannot drop below 0"), StaminaComp->GetStamina(), 0.0f);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStaminaComponentRegenerationTest, "ShunyaGame.Combat.Stamina.RegenerationWithDelay", ShunyaCombatTests::Flags)
+bool FStaminaComponentRegenerationTest::RunTest(const FString& Parameters)
+{
+	UStaminaComponent* StaminaComp = NewObject<UStaminaComponent>();
+	TestNotNull(TEXT("StaminaComponent should be created"), StaminaComp);
+	if (!StaminaComp)
+	{
+		return false;
+	}
+
+	// Consume 40 stamina -> 60 stamina remaining
+	TestTrue(TEXT("Consume 40 stamina"), StaminaComp->ConsumeStamina(40.0f));
+	TestEqual(TEXT("Stamina is 60"), StaminaComp->GetStamina(), 60.0f);
+	TestEqual(TEXT("RegenDelayTimer set to 1.0s"), StaminaComp->GetCurrentRegenDelayTimer(), 1.0f);
+
+	// Advance time by 0.5s: still within delay, no stamina restored
+	StaminaComp->UpdateRegeneration(0.5f);
+	TestEqual(TEXT("Remaining delay timer is 0.5s"), StaminaComp->GetCurrentRegenDelayTimer(), 0.5f);
+	TestEqual(TEXT("Stamina unchanged during regen delay"), StaminaComp->GetStamina(), 60.0f);
+
+	// Another stamina consumption resets the delay timer
+	TestTrue(TEXT("Consume another 10 stamina"), StaminaComp->ConsumeStamina(10.0f));
+	TestEqual(TEXT("Stamina is 50"), StaminaComp->GetStamina(), 50.0f);
+	TestEqual(TEXT("RegenDelayTimer reset to 1.0s"), StaminaComp->GetCurrentRegenDelayTimer(), 1.0f);
+
+	// Advance time by 1.0s to finish delay
+	StaminaComp->UpdateRegeneration(1.0f);
+	TestEqual(TEXT("RegenDelayTimer is now 0"), StaminaComp->GetCurrentRegenDelayTimer(), 0.0f);
+	TestEqual(TEXT("Stamina is still 50 right when delay ends"), StaminaComp->GetStamina(), 50.0f);
+
+	// Advance time by 1.0s: regen active (15/s) -> stamina should be 50 + 15 = 65
+	StaminaComp->UpdateRegeneration(1.0f);
+	TestEqual(TEXT("Stamina regenerated by 15 over 1s"), StaminaComp->GetStamina(), 65.0f);
+
+	// Advance time by 3.0s: 65 + 45 = 110, but should clamp to MaxStamina (100)
+	StaminaComp->UpdateRegeneration(3.0f);
+	TestEqual(TEXT("Stamina clamped to MaxStamina (100)"), StaminaComp->GetStamina(), 100.0f);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStaminaComponentRestoreStaminaTest, "ShunyaGame.Combat.Stamina.RestoreStamina", ShunyaCombatTests::Flags)
+bool FStaminaComponentRestoreStaminaTest::RunTest(const FString& Parameters)
+{
+	UStaminaComponent* StaminaComp = NewObject<UStaminaComponent>();
+	TestNotNull(TEXT("StaminaComponent should be created"), StaminaComp);
+	if (!StaminaComp)
+	{
+		return false;
+	}
+
+	StaminaComp->ConsumeStamina(50.0f);
+	TestEqual(TEXT("Stamina is 50"), StaminaComp->GetStamina(), 50.0f);
+
+	TestTrue(TEXT("Restore 20 stamina"), StaminaComp->RestoreStamina(20.0f));
+	TestEqual(TEXT("Stamina is 70"), StaminaComp->GetStamina(), 70.0f);
+
+	TestTrue(TEXT("Restore 50 stamina (overflow)"), StaminaComp->RestoreStamina(50.0f));
+	TestEqual(TEXT("Stamina clamped to MaxStamina"), StaminaComp->GetStamina(), 100.0f);
+
+	TestFalse(TEXT("Cannot restore when already max"), StaminaComp->RestoreStamina(10.0f));
+
+	return true;
+}
+
+#endif // WITH_DEV_AUTOMATION_TESTS

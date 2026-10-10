@@ -1,0 +1,7 @@
+{
+  "kind": "texture",
+  "name": "T_Rock",
+  "folder": "Materials",
+  "source": "SourceArt/Generated/T_Rock.png",
+  "srgb": true
+}

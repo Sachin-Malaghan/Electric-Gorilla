@@ -1,0 +1,16 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "0.1",
+  "FriendlyName": "Shunya Agent Bridge",
+  "Description": "Safe, permission-scoped bridge between Shunya Studio AI agents and the Unreal Editor: editor/world/asset state, whitelisted commands, runtime telemetry.",
+  "Category": "Shunya",
+  "CreatedBy": "Shunya Studios",
+  "CanContainContent": false,
+  "IsBetaVersion": true,
+  "Installed": false,
+  "Modules": [
+    { "Name": "ShunyaAgentBridge", "Type": "Runtime", "LoadingPhase": "Default" },
+    { "Name": "ShunyaAgentBridgeEditor", "Type": "Editor", "LoadingPhase": "PostEngineInit" }
+  ]
+}

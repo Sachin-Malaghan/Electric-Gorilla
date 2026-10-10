@@ -1,0 +1,899 @@
+{
+  "kind": "level",
+  "name": "L_Arena",
+  "folder": "Maps",
+  "game_mode": "/Script/ShunyaGame.ShunyaCombatGameMode",
+  "actors": [
+    {
+      "type": "directional_light",
+      "label": "SunLight",
+      "location": [
+        0.0,
+        0.0,
+        1000.0
+      ],
+      "rotation": [
+        -50.0,
+        45.0,
+        0.0
+      ],
+      "intensity": 3.14
+    },
+    {
+      "type": "sky_light",
+      "label": "SkyLight",
+      "location": [
+        0.0,
+        0.0,
+        1000.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "intensity": 1.0
+    },
+    {
+      "type": "exponential_height_fog",
+      "label": "HeightFog",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "type": "sky_atmosphere",
+      "label": "SkyAtmosphere",
+      "location": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "type": "static_mesh",
+      "label": "Ground_Center",
+      "location": [
+        0.0,
+        0.0,
+        -10.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        90.0,
+        90.0,
+        0.2
+      ],
+      "shape": "Cube",
+      "material": "M_Ground"
+    },
+    {
+      "type": "static_mesh",
+      "label": "Hill_NW",
+      "location": [
+        -2200.0,
+        2200.0,
+        -300.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        28.0,
+        28.0,
+        7.0
+      ],
+      "shape": "Sphere",
+      "material": "M_Ground"
+    },
+    {
+      "type": "static_mesh",
+      "label": "Hill_SE",
+      "location": [
+        2200.0,
+        -2200.0,
+        -300.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        28.0,
+        28.0,
+        7.0
+      ],
+      "shape": "Sphere",
+      "material": "M_Ground"
+    },
+    {
+      "type": "static_mesh",
+      "label": "Hill_NE",
+      "location": [
+        2400.0,
+        2000.0,
+        -350.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        24.0,
+        24.0,
+        6.0
+      ],
+      "shape": "Sphere",
+      "material": "M_Ground"
+    },
+    {
+      "type": "static_mesh",
+      "label": "Hill_SW",
+      "location": [
+        -2400.0,
+        -2000.0,
+        -350.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        24.0,
+        24.0,
+        6.0
+      ],
+      "shape": "Sphere",
+      "material": "M_Ground"
+    },
+    {
+      "type": "static_mesh",
+      "label": "Boundary_North",
+      "location": [
+        0.0,
+        4100.0,
+        250.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        90.0,
+        2.0,
+        6.0
+      ],
+      "shape": "Cube",
+      "material": "M_Boundary"
+    },
+    {
+      "type": "static_mesh",
+      "label": "Boundary_South",
+      "location": [
+        0.0,
+        -4100.0,
+        250.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        90.0,
+        2.0,
+        6.0
+      ],
+      "shape": "Cube",
+      "material": "M_Boundary"
+    },
+    {
+      "type": "static_mesh",
+      "label": "Boundary_East",
+      "location": [
+        4100.0,
+        0.0,
+        250.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        2.0,
+        90.0,
+        6.0
+      ],
+      "shape": "Cube",
+      "material": "M_Boundary"
+    },
+    {
+      "type": "static_mesh",
+      "label": "Boundary_West",
+      "location": [
+        -4100.0,
+        0.0,
+        250.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        2.0,
+        90.0,
+        6.0
+      ],
+      "shape": "Cube",
+      "material": "M_Boundary"
+    },
+    {
+      "type": "static_mesh",
+      "label": "Rock_Cover_North",
+      "location": [
+        0.0,
+        1800.0,
+        75.0
+      ],
+      "rotation": [
+        10.0,
+        25.0,
+        -15.0
+      ],
+      "scale": [
+        2.5,
+        3.0,
+        1.8
+      ],
+      "shape": "Cube",
+      "material": "M_Rock"
+    },
+    {
+      "type": "static_mesh",
+      "label": "Rock_Cover_South",
+      "location": [
+        0.0,
+        -1800.0,
+        75.0
+      ],
+      "rotation": [
+        -15.0,
+        65.0,
+        10.0
+      ],
+      "scale": [
+        2.8,
+        2.4,
+        1.8
+      ],
+      "shape": "Cube",
+      "material": "M_Rock"
+    },
+    {
+      "type": "static_mesh",
+      "label": "Rock_Cover_East",
+      "location": [
+        1800.0,
+        0.0,
+        75.0
+      ],
+      "rotation": [
+        20.0,
+        -35.0,
+        5.0
+      ],
+      "scale": [
+        3.0,
+        2.6,
+        1.8
+      ],
+      "shape": "Cube",
+      "material": "M_Rock"
+    },
+    {
+      "type": "static_mesh",
+      "label": "Rock_Cover_West",
+      "location": [
+        -1800.0,
+        0.0,
+        75.0
+      ],
+      "rotation": [
+        -5.0,
+        40.0,
+        -25.0
+      ],
+      "scale": [
+        2.6,
+        3.0,
+        1.8
+      ],
+      "shape": "Cube",
+      "material": "M_Rock"
+    },
+    {
+      "type": "static_mesh",
+      "label": "Ruin_Wall_NW",
+      "location": [
+        -1400.0,
+        1400.0,
+        120.0
+      ],
+      "rotation": [
+        0.0,
+        45.0,
+        0.0
+      ],
+      "scale": [
+        6.0,
+        0.8,
+        2.5
+      ],
+      "shape": "Cube",
+      "material": "M_Rock"
+    },
+    {
+      "type": "static_mesh",
+      "label": "Ruin_Wall_SE",
+      "location": [
+        1400.0,
+        -1400.0,
+        120.0
+      ],
+      "rotation": [
+        0.0,
+        45.0,
+        0.0
+      ],
+      "scale": [
+        6.0,
+        0.8,
+        2.5
+      ],
+      "shape": "Cube",
+      "material": "M_Rock"
+    },
+    {
+      "type": "static_mesh",
+      "label": "Ruin_Wall_NE",
+      "location": [
+        1400.0,
+        1400.0,
+        120.0
+      ],
+      "rotation": [
+        0.0,
+        -45.0,
+        0.0
+      ],
+      "scale": [
+        6.0,
+        0.8,
+        2.5
+      ],
+      "shape": "Cube",
+      "material": "M_Rock"
+    },
+    {
+      "type": "static_mesh",
+      "label": "Ruin_Wall_SW",
+      "location": [
+        -1400.0,
+        -1400.0,
+        120.0
+      ],
+      "rotation": [
+        0.0,
+        -45.0,
+        0.0
+      ],
+      "scale": [
+        6.0,
+        0.8,
+        2.5
+      ],
+      "shape": "Cube",
+      "material": "M_Rock"
+    },
+    {
+      "type": "static_mesh",
+      "label": "Tree_Trunk_NNE",
+      "location": [
+        800.0,
+        2200.0,
+        150.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        0.8,
+        0.8,
+        3.0
+      ],
+      "shape": "Cylinder",
+      "material": "M_Wood"
+    },
+    {
+      "type": "static_mesh",
+      "label": "Tree_Leaves_NNE",
+      "location": [
+        800.0,
+        2200.0,
+        420.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        3.0,
+        3.0,
+        3.5
+      ],
+      "shape": "Cone",
+      "material": "M_Ground"
+    },
+    {
+      "type": "static_mesh",
+      "label": "Tree_Trunk_SSW",
+      "location": [
+        -800.0,
+        -2200.0,
+        150.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        0.8,
+        0.8,
+        3.0
+      ],
+      "shape": "Cylinder",
+      "material": "M_Wood"
+    },
+    {
+      "type": "static_mesh",
+      "label": "Tree_Leaves_SSW",
+      "location": [
+        -800.0,
+        -2200.0,
+        420.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        3.0,
+        3.0,
+        3.5
+      ],
+      "shape": "Cone",
+      "material": "M_Ground"
+    },
+    {
+      "type": "static_mesh",
+      "label": "Tree_Trunk_ENE",
+      "location": [
+        2200.0,
+        900.0,
+        150.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        0.8,
+        0.8,
+        3.0
+      ],
+      "shape": "Cylinder",
+      "material": "M_Wood"
+    },
+    {
+      "type": "static_mesh",
+      "label": "Tree_Leaves_ENE",
+      "location": [
+        2200.0,
+        900.0,
+        420.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        3.0,
+        3.0,
+        3.5
+      ],
+      "shape": "Cone",
+      "material": "M_Ground"
+    },
+    {
+      "type": "static_mesh",
+      "label": "Tree_Trunk_WSW",
+      "location": [
+        -2200.0,
+        -900.0,
+        150.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        0.8,
+        0.8,
+        3.0
+      ],
+      "shape": "Cylinder",
+      "material": "M_Wood"
+    },
+    {
+      "type": "static_mesh",
+      "label": "Tree_Leaves_WSW",
+      "location": [
+        -2200.0,
+        -900.0,
+        420.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        3.0,
+        3.0,
+        3.5
+      ],
+      "shape": "Cone",
+      "material": "M_Ground"
+    },
+    {
+      "type": "player_start",
+      "label": "PlayerStart",
+      "location": [
+        0.0,
+        0.0,
+        100.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "type": "static_mesh",
+      "label": "SpawnMarker_000",
+      "location": [
+        1200.0,
+        0.0,
+        20.0
+      ],
+      "rotation": [
+        0.0,
+        180.0,
+        0.0
+      ],
+      "scale": [
+        0.6,
+        0.6,
+        0.2
+      ],
+      "shape": "Cylinder",
+      "material": "M_Enemy"
+    },
+    {
+      "type": "static_mesh",
+      "label": "SpawnMarker_045",
+      "location": [
+        848.5,
+        848.5,
+        20.0
+      ],
+      "rotation": [
+        0.0,
+        -135.0,
+        0.0
+      ],
+      "scale": [
+        0.6,
+        0.6,
+        0.2
+      ],
+      "shape": "Cylinder",
+      "material": "M_Enemy"
+    },
+    {
+      "type": "static_mesh",
+      "label": "SpawnMarker_072",
+      "location": [
+        370.8,
+        1141.3,
+        20.0
+      ],
+      "rotation": [
+        0.0,
+        -108.0,
+        0.0
+      ],
+      "scale": [
+        0.6,
+        0.6,
+        0.2
+      ],
+      "shape": "Cylinder",
+      "material": "M_Enemy"
+    },
+    {
+      "type": "static_mesh",
+      "label": "SpawnMarker_090",
+      "location": [
+        0.0,
+        1200.0,
+        20.0
+      ],
+      "rotation": [
+        0.0,
+        -90.0,
+        0.0
+      ],
+      "scale": [
+        0.6,
+        0.6,
+        0.2
+      ],
+      "shape": "Cylinder",
+      "material": "M_Enemy"
+    },
+    {
+      "type": "static_mesh",
+      "label": "SpawnMarker_120",
+      "location": [
+        -600.0,
+        1039.2,
+        20.0
+      ],
+      "rotation": [
+        0.0,
+        -60.0,
+        0.0
+      ],
+      "scale": [
+        0.6,
+        0.6,
+        0.2
+      ],
+      "shape": "Cylinder",
+      "material": "M_Enemy"
+    },
+    {
+      "type": "static_mesh",
+      "label": "SpawnMarker_135",
+      "location": [
+        -848.5,
+        848.5,
+        20.0
+      ],
+      "rotation": [
+        0.0,
+        -45.0,
+        0.0
+      ],
+      "scale": [
+        0.6,
+        0.6,
+        0.2
+      ],
+      "shape": "Cylinder",
+      "material": "M_Enemy"
+    },
+    {
+      "type": "static_mesh",
+      "label": "SpawnMarker_144",
+      "location": [
+        -970.8,
+        705.3,
+        20.0
+      ],
+      "rotation": [
+        0.0,
+        -36.0,
+        0.0
+      ],
+      "scale": [
+        0.6,
+        0.6,
+        0.2
+      ],
+      "shape": "Cylinder",
+      "material": "M_Enemy"
+    },
+    {
+      "type": "static_mesh",
+      "label": "SpawnMarker_180",
+      "location": [
+        -1200.0,
+        0.0,
+        20.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        0.6,
+        0.6,
+        0.2
+      ],
+      "shape": "Cylinder",
+      "material": "M_Enemy"
+    },
+    {
+      "type": "static_mesh",
+      "label": "SpawnMarker_216",
+      "location": [
+        -970.8,
+        -705.3,
+        20.0
+      ],
+      "rotation": [
+        0.0,
+        36.0,
+        0.0
+      ],
+      "scale": [
+        0.6,
+        0.6,
+        0.2
+      ],
+      "shape": "Cylinder",
+      "material": "M_Enemy"
+    },
+    {
+      "type": "static_mesh",
+      "label": "SpawnMarker_225",
+      "location": [
+        -848.5,
+        -848.5,
+        20.0
+      ],
+      "rotation": [
+        0.0,
+        45.0,
+        0.0
+      ],
+      "scale": [
+        0.6,
+        0.6,
+        0.2
+      ],
+      "shape": "Cylinder",
+      "material": "M_Enemy"
+    },
+    {
+      "type": "static_mesh",
+      "label": "SpawnMarker_240",
+      "location": [
+        -600.0,
+        -1039.2,
+        20.0
+      ],
+      "rotation": [
+        0.0,
+        60.0,
+        0.0
+      ],
+      "scale": [
+        0.6,
+        0.6,
+        0.2
+      ],
+      "shape": "Cylinder",
+      "material": "M_Enemy"
+    },
+    {
+      "type": "static_mesh",
+      "label": "SpawnMarker_270",
+      "location": [
+        0.0,
+        -1200.0,
+        20.0
+      ],
+      "rotation": [
+        0.0,
+        90.0,
+        0.0
+      ],
+      "scale": [
+        0.6,
+        0.6,
+        0.2
+      ],
+      "shape": "Cylinder",
+      "material": "M_Enemy"
+    },
+    {
+      "type": "static_mesh",
+      "label": "SpawnMarker_288",
+      "location": [
+        370.8,
+        -1141.3,
+        20.0
+      ],
+      "rotation": [
+        0.0,
+        108.0,
+        0.0
+      ],
+      "scale": [
+        0.6,
+        0.6,
+        0.2
+      ],
+      "shape": "Cylinder",
+      "material": "M_Enemy"
+    },
+    {
+      "type": "static_mesh",
+      "label": "SpawnMarker_315",
+      "location": [
+        848.5,
+        -848.5,
+        20.0
+      ],
+      "rotation": [
+        0.0,
+        135.0,
+        0.0
+      ],
+      "scale": [
+        0.6,
+        0.6,
+        0.2
+      ],
+      "shape": "Cylinder",
+      "material": "M_Enemy"
+    }
+  ]
+}
