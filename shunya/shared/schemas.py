@@ -111,7 +111,7 @@ class AgentProfile(BaseModel):
     max_iterations: int = 30
     max_runtime_s: int = 1800
     max_tool_calls: int = 80
-    token_budget: int = 400_000
+    token_budget: int = 1_500_000
     cost_budget: float = 5.0
     supervisor: str | None = None
     escalation_policy: EscalationPolicy = Field(default_factory=EscalationPolicy)

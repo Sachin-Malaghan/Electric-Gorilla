@@ -46,7 +46,7 @@
   - doc_author
   write_globs:
   - Docs/*
-  max_iterations: 20
+  max_iterations: 32
   cost_budget: 2.0
 - id: knowledge_curator_01
   name: Sara
@@ -94,5 +94,5 @@
   - doc_author
   write_globs:
   - Docs/*
-  max_iterations: 20
+  max_iterations: 32
   cost_budget: 2.0

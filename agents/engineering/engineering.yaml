@@ -41,7 +41,7 @@
     color: '#7a5cff'
     desk: 0
   capability: reviewer
-  max_iterations: 20
+  max_iterations: 32
   cost_budget: 3.0
 - id: gameplay_programmer_01
   name: Arjun
@@ -103,10 +103,10 @@
   - Source/*
   - Plugins/*/Source/*
   - Docs/*
-  max_iterations: 40
-  max_tool_calls: 120
-  max_runtime_s: 3600
-  token_budget: 1500000
+  max_iterations: 80
+  max_tool_calls: 240
+  max_runtime_s: 7200
+  token_budget: 6000000
   cost_budget: 8.0
   escalation_policy:
     escalate_to: technical_director_01
@@ -176,10 +176,10 @@
   - Source/*
   - Plugins/*/Source/*
   - Docs/*
-  max_iterations: 40
-  max_tool_calls: 120
-  max_runtime_s: 3600
-  token_budget: 1500000
+  max_iterations: 80
+  max_tool_calls: 240
+  max_runtime_s: 7200
+  token_budget: 6000000
   cost_budget: 8.0
   escalation_policy:
     escalate_to: technical_director_01
@@ -237,7 +237,7 @@
   - doc_author
   write_globs:
   - Docs/*
-  max_iterations: 20
+  max_iterations: 32
   cost_budget: 2.0
 - id: ai_programmer_01
   name: Tara
@@ -298,10 +298,10 @@
   - Source/*
   - Plugins/*/Source/*
   - Docs/*
-  max_iterations: 40
-  max_tool_calls: 120
-  max_runtime_s: 3600
-  token_budget: 1500000
+  max_iterations: 80
+  max_tool_calls: 240
+  max_runtime_s: 7200
+  token_budget: 6000000
   cost_budget: 8.0
   escalation_policy:
     escalate_to: technical_director_01
@@ -407,10 +407,10 @@
   - Source/*
   - Plugins/*/Source/*
   - Docs/*
-  max_iterations: 40
-  max_tool_calls: 120
-  max_runtime_s: 3600
-  token_budget: 1500000
+  max_iterations: 80
+  max_tool_calls: 240
+  max_runtime_s: 7200
+  token_budget: 6000000
   cost_budget: 8.0
   escalation_policy:
     escalate_to: technical_director_01
@@ -519,10 +519,10 @@
   - Source/*
   - Plugins/*/Source/*
   - Docs/*
-  max_iterations: 40
-  max_tool_calls: 120
-  max_runtime_s: 3600
-  token_budget: 1500000
+  max_iterations: 80
+  max_tool_calls: 240
+  max_runtime_s: 7200
+  token_budget: 6000000
   cost_budget: 8.0
   escalation_policy:
     escalate_to: technical_director_01

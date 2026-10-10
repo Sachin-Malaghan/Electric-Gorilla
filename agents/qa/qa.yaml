@@ -47,7 +47,7 @@
   - lead_reviewer
   write_globs:
   - Docs/*
-  max_iterations: 20
+  max_iterations: 32
   cost_budget: 2.5
 - id: qa_functional_01
   name: Ananya
@@ -100,7 +100,7 @@
     color: '#39c27d'
     desk: 1
   capability: qa
-  max_iterations: 20
+  max_iterations: 32
   max_runtime_s: 2400
   cost_budget: 3.0
 - id: qa_gameplay_01
@@ -152,7 +152,7 @@
   - doc_author
   write_globs:
   - Docs/*
-  max_iterations: 20
+  max_iterations: 32
   cost_budget: 2.0
   max_runtime_s: 2400
 - id: qa_regression_01
@@ -204,7 +204,7 @@
   - doc_author
   write_globs:
   - Docs/*
-  max_iterations: 20
+  max_iterations: 32
   cost_budget: 2.0
   max_runtime_s: 2400
 - id: qa_performance_01
@@ -256,7 +256,7 @@
   - doc_author
   write_globs:
   - Docs/*
-  max_iterations: 20
+  max_iterations: 32
   cost_budget: 2.0
   max_runtime_s: 2400
 - id: crash_investigator_01

@@ -47,7 +47,7 @@
   - lead_reviewer
   write_globs:
   - Docs/*
-  max_iterations: 20
+  max_iterations: 32
   cost_budget: 2.5
 - id: rigging_agent_01
   name: Arnav
@@ -144,10 +144,10 @@
   - Source/*
   - Plugins/*/Source/*
   - Docs/*
-  max_iterations: 40
-  max_tool_calls: 120
-  max_runtime_s: 3600
-  token_budget: 1500000
+  max_iterations: 80
+  max_tool_calls: 240
+  max_runtime_s: 7200
+  token_budget: 6000000
   cost_budget: 8.0
   escalation_policy:
     escalate_to: technical_director_01
@@ -204,6 +204,6 @@
   write_globs:
   - ContentJobs/*
   - SourceArt/*
-  max_iterations: 24
+  max_iterations: 48
   max_runtime_s: 2400
   cost_budget: 3.0

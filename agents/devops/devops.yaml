@@ -106,6 +106,6 @@
   - doc_author
   write_globs:
   - Docs/*
-  max_iterations: 20
+  max_iterations: 32
   cost_budget: 2.0
   max_runtime_s: 7200

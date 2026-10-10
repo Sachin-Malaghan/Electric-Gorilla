@@ -47,7 +47,7 @@
   - lead_reviewer
   write_globs:
   - Docs/*
-  max_iterations: 20
+  max_iterations: 32
   cost_budget: 2.5
 - id: concept_agent_01
   name: Veer
@@ -97,7 +97,7 @@
   - doc_author
   write_globs:
   - Docs/*
-  max_iterations: 20
+  max_iterations: 32
   cost_budget: 2.0
 - id: character_agent_01
   name: Anika
@@ -146,7 +146,7 @@
   write_globs:
   - ContentJobs/*
   - SourceArt/*
-  max_iterations: 24
+  max_iterations: 48
   max_runtime_s: 2400
   cost_budget: 3.0
 - id: prop_agent_01
@@ -196,7 +196,7 @@
   write_globs:
   - ContentJobs/*
   - SourceArt/*
-  max_iterations: 24
+  max_iterations: 48
   max_runtime_s: 2400
   cost_budget: 3.0
 - id: material_agent_01
@@ -246,7 +246,7 @@
   write_globs:
   - ContentJobs/*
   - SourceArt/*
-  max_iterations: 24
+  max_iterations: 48
   max_runtime_s: 2400
   cost_budget: 3.0
 - id: vfx_agent_01

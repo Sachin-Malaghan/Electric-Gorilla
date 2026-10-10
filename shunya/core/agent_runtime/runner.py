@@ -55,7 +55,7 @@ from shunya.tools.services import ToolServices
 log = logging.getLogger(__name__)
 
 REPEATED_ERROR_LIMIT = 3
-MAX_NUDGES = 2
+MAX_NUDGES = 3  # consecutive replies with no tool call before the run is escalated
 MAX_PROVIDER_FAILURES = 3
 _ID = re.compile(r"\b[A-Z]{1,5}-[0-9a-f]{10}\b|\b\d+(\.\d+)?s\b")
 
@@ -237,8 +237,12 @@ class AgentRunner:
                     nudges += 1
                     if nudges > MAX_NUDGES:
                         raise _Stop(RunStatus.ESCALATED, "agent stopped without submitting a report")
-                    messages.append(ChatMessage(role="user", text="Continue. When the work is complete, finish by calling the submit_report tool."))
+                    messages.append(ChatMessage(role="user", text=(
+                        "Your last reply contained no tool call, so nothing happened. You can only act through tools: "
+                        "call the next tool you need now (for example to read or write a file), or, if the work is complete, call submit_report. "
+                        "Do not describe what you will do - do it with a tool call.")))
                     continue
+                nudges = 0
 
                 truncated = resp.stop_reason == "max_tokens"
                 results: list[ToolResultBlock] = []
@@ -271,7 +275,16 @@ class AgentRunner:
                         if errors[fp] >= REPEATED_ERROR_LIMIT:
                             messages.append(ChatMessage(role="user", tool_results=results))
                             raise _Stop(RunStatus.ESCALATED, f"the same error occurred {errors[fp]} times: {result.summary}")
-                messages.append(ChatMessage(role="user", tool_results=results))
+                # Pacing: tell the agent where it stands so it converges on a report instead of running into the wall.
+                left = agent.max_iterations - run.iterations
+                pace = ""
+                if report is None:
+                    if left in (3, 1):
+                        pace = (f"You have {left} step(s) left. Stop exploring. Call submit_report now with what you have completed and verified; "
+                                "list anything unfinished honestly in the report.")
+                    elif run.iterations in (agent.max_iterations // 2, (agent.max_iterations * 3) // 4):
+                        pace = f"Progress check: you have used {run.iterations} of {agent.max_iterations} steps. Finish the remaining work directly and submit your report within the steps left."
+                messages.append(ChatMessage(role="user", tool_results=results, text=pace))
             await self._phase(run, RunPhase.REPORT)
         except _Stop as stop:
             status, reason = stop.status, stop.reason

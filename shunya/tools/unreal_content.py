@@ -141,7 +141,7 @@ class UnrealPlaytestService(IPlaytestService):
         elif timed_out:
             report = {"result": "ERROR", "error": f"the game did not finish within {timeout_s}s"}
         else:
-            hint = "the map did not load or has no Orb Runner game mode / player" if code == 0 else f"the game exited with code {code}"
+            hint = "the map did not load, or the game has no -ShunyaAutoPlay bot that logs a 'ShunyaPlaytest:' line" if code == 0 else f"the game exited with code {code}"
             report = {"result": "ERROR", "error": f"no playtest report in the log: {hint}"}
         screenshot = next(iter(sorted(shots.rglob("Playtest*.png"))), None) if shots.is_dir() else None
         report["screenshot"] = str(screenshot) if screenshot else None

@@ -47,7 +47,7 @@
   - lead_reviewer
   write_globs:
   - Docs/*
-  max_iterations: 20
+  max_iterations: 32
   cost_budget: 2.5
 - id: sfx_agent_01
   name: Vihaan
@@ -94,7 +94,7 @@
   write_globs:
   - ContentJobs/*
   - SourceArt/*
-  max_iterations: 24
+  max_iterations: 48
   max_runtime_s: 2400
   cost_budget: 3.0
 - id: music_agent_01
@@ -142,6 +142,6 @@
   write_globs:
   - ContentJobs/*
   - SourceArt/*
-  max_iterations: 24
+  max_iterations: 48
   max_runtime_s: 2400
   cost_budget: 3.0

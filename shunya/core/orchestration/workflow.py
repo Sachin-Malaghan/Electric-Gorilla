@@ -73,6 +73,10 @@ class StepBlocked(Exception):
     """A step cannot proceed without a human (escalation)."""
 
 
+CODE_CAPABILITIES = {"programmer", "ai_programmer", "ui_programmer", "tools_programmer", "gameplay_animator"}
+CONTENT_CAPABILITIES = {"material_artist", "character_artist", "prop_artist", "sfx_designer", "composer", "world_builder", "lighting_artist", "cinematic_artist"}
+
+
 class Orchestrator:
     def __init__(
         self,
@@ -452,7 +456,9 @@ class Orchestrator:
                              "Each task has a track: `code` (C++, compiled and tested - give a test_filter under 'ShunyaGame.'), "
                              "`doc` (documents under Docs/ - leave test_filter empty unless the author must run a playtest or the test suite), or "
                              "`content` (Unreal assets made with the content tools - leave test_filter empty). "
-                             "Pick assignee_capability and reviewer_capability from the roster; the reviewer is a lead and never the assignee. "
+                             "Pick assignee_capability and reviewer_capability from the roster, following the 'Who does what' table in your role guide; "
+                             "the reviewer is a lead and never the assignee. The track must match the assignee: only programmers work on `code`, "
+                             "only artists, audio and environment staff on `content`. "
                              "Order work with depends_on: design before the work it specifies, code before content that uses its classes, everything before QA. "
                              "Every task needs concrete acceptance criteria. Prefer one task when the feature is small. Submit a FeaturePlan."),
                         ),
@@ -470,7 +476,8 @@ class Orchestrator:
                             ("Proposed plan", plan.model_dump_json(indent=1)),  # type: ignore[union-attr]
                             ("Relevant project knowledge", knowledge),
                             ("Your job", "You are in the planning meeting as the engineering voice. Check the plan against the actual codebase: "
-                             "is it feasible, are acceptance criteria testable with Unreal automation tests, is anything missing? "
+                             "is it feasible within the project's constraints, are the code tasks' acceptance criteria testable with Unreal automation tests, "
+                             "is every task on the track and with the capability that can actually do it, is anything missing? "
                              "Do not write code. Submit a PlanReview."),
                         ),
                     )
@@ -504,6 +511,11 @@ class Orchestrator:
         # 3. Typed tasks with acceptance criteria.
         created: list[Task] = []
         for p in plan.tasks:
+            # the assignee's trade decides the track: a planner that pairs an artist with `code` (or a programmer with `content`) meant the trade
+            if p.assignee_capability in CONTENT_CAPABILITIES and p.track != "content":
+                p.track, p.test_filter = "content", ""
+            elif p.assignee_capability in CODE_CAPABILITIES and p.track != "code":
+                p.track = "code"
             task = Task(
                 id=self.tasks.repo.next_id("GAME"), type=TaskType(p.type), title=p.title, description=p.description,
                 created_by=producer.id, priority=Priority(p.priority), parent_id=feature.id, acceptance_criteria=p.acceptance_criteria,

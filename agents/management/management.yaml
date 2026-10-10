@@ -44,7 +44,7 @@
   capability: director
   prompts:
   - lead_reviewer
-  max_iterations: 12
+  max_iterations: 20
   cost_budget: 1.5
 - id: producer_01
   name: Kabir
@@ -90,5 +90,5 @@
   capability: producer
   prompts:
   - lead_reviewer
-  max_iterations: 16
+  max_iterations: 24
   cost_budget: 2.0

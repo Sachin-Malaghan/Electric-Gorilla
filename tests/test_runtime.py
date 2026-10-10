@@ -89,7 +89,7 @@ async def test_agent_that_never_submits_is_escalated(make_studio):
 
     _, out = await _run(make_studio, lambda ctx: ScriptStep(text="I think I am done."))
     assert out.run.status == RunStatus.ESCALATED and "without submitting" in out.run.error
-    assert out.run.llm_calls == 3  # initial + two nudges
+    assert out.run.llm_calls == 4  # initial + three nudges
 
 
 async def test_invalid_report_is_rejected_then_corrected(make_studio):

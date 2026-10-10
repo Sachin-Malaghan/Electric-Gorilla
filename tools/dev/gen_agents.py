@@ -47,22 +47,22 @@ def agent(id, name, role, resp, room, color, desk, *, cap=None, tools=None, perm
 def lead(id, name, role, resp, room, color, desk, cap, sup, **extra):
     """Department leads write briefs and review their department's work."""
     return agent(id, name, role, resp, room, color, desk, cap=cap, sup=sup, tools=DOC, perms=P_DOC, prompts=["doc_author", "lead_reviewer"],
-                 write_globs=["Docs/*"], max_iterations=20, cost_budget=2.5, **extra)
+                 write_globs=["Docs/*"], max_iterations=32, cost_budget=2.5, **extra)
 
 
 def writer(id, name, role, resp, room, color, desk, cap, sup, tools_extra=(), perms=None, **extra):
     return agent(id, name, role, resp, room, color, desk, cap=cap, sup=sup, tools=DOC + list(tools_extra), perms=perms or P_DOC, prompts=["doc_author"],
-                 write_globs=["Docs/*"], max_iterations=20, cost_budget=2.0, **extra)
+                 write_globs=["Docs/*"], max_iterations=32, cost_budget=2.0, **extra)
 
 
 def maker(id, name, role, resp, room, color, desk, cap, sup, queue_tools):
     """Content authors: typed content jobs, applied in the editor."""
     return agent(id, name, role, resp, room, color, desk, cap=cap, sup=sup, tools=READ + ["git_status", *queue_tools, "apply_content"], perms=P_CONTENT,
-                 prompts=["content_author"], write_globs=["ContentJobs/*", "SourceArt/*"], max_iterations=24, max_runtime_s=2400, cost_budget=3.0)
+                 prompts=["content_author"], write_globs=["ContentJobs/*", "SourceArt/*"], max_iterations=48, max_runtime_s=2400, cost_budget=3.0)
 
 
 PROG_TOOLS = READ + ["create_file", "patch_file", "compile_project", "run_automation_tests", "git_diff", "git_status"] + UE_READ
-PROG = dict(write_globs=["Source/*", "Plugins/*/Source/*", "Docs/*"], max_iterations=40, max_tool_calls=120, max_runtime_s=3600, token_budget=1500000, cost_budget=8.0,
+PROG = dict(write_globs=["Source/*", "Plugins/*/Source/*", "Docs/*"], max_iterations=80, max_tool_calls=240, max_runtime_s=7200, token_budget=6000000, cost_budget=8.0,
             escalation_policy={"escalate_to": "technical_director_01", "after_consecutive_failures": 3},
             validation_policy={"required_checks": ["compile", "tests", "review", "qa"]})
 
@@ -74,9 +74,9 @@ def programmer(id, name, role, resp, color, desk, cap, room="engineering", sup="
 FILES = {
     "management/management.yaml": [
         agent("studio_director_01", "Meera", "Studio Director", ["interpret game objectives", "scope features", "flag product risk", "review direction-setting documents"], "executive", "#c9a227", 0,
-              cap="director", tools=REVIEW, prompts=["lead_reviewer"], max_iterations=12, cost_budget=1.5),
+              cap="director", tools=REVIEW, prompts=["lead_reviewer"], max_iterations=20, cost_budget=1.5),
         agent("producer_01", "Kabir", "Producer", ["create epics and typed tasks", "acceptance criteria", "task graph and dependencies", "review plans, sign-offs and release documents"], "executive", "#d4783a", 1,
-              cap="producer", sup="studio_director_01", tools=REVIEW, prompts=["lead_reviewer"], max_iterations=16, cost_budget=2.0),
+              cap="producer", sup="studio_director_01", tools=REVIEW, prompts=["lead_reviewer"], max_iterations=24, cost_budget=2.0),
     ],
     "design/design.yaml": [
         lead("lead_designer_01", "Maya", "Lead Designer", ["game design document", "design pillars", "review design documents"], "design", "#e6589c", 0, "lead_designer", "producer_01"),
@@ -88,7 +88,7 @@ FILES = {
     ],
     "engineering/engineering.yaml": [
         agent("technical_director_01", "Vikram", "Technical Director / Code Reviewer", ["independent code review", "architecture decisions", "engineering standards"], "engineering", "#7a5cff", 0,
-              cap="reviewer", tier="strong", sup="producer_01", tools=REVIEW, max_iterations=20, cost_budget=3.0),
+              cap="reviewer", tier="strong", sup="producer_01", tools=REVIEW, max_iterations=32, cost_budget=3.0),
         programmer("gameplay_programmer_01", "Arjun", "Senior Unreal Gameplay Programmer", ["gameplay systems", "Unreal C++", "components", "game rules", "replication"], "#4f8cff", 1, "programmer"),
         programmer("unreal_programmer_01", "Diya", "Unreal Engine Programmer", ["pawns and actors", "engine integration", "subsystems", "automation tests"], "#3fb6c9", 2, "programmer"),
         writer("software_architect_01", "Ishaan", "Software Architect", ["technical design", "module and class layout", "ADRs"], "engineering", "#6d7cff", 3, "software_architect", "technical_director_01"),
@@ -129,7 +129,7 @@ FILES = {
         lead("qa_lead_01", "Farah", "QA Lead", ["sign-off report", "review playtest, performance and regression reports"], "qa", "#2fae6b", 0, "qa_lead", "producer_01"),
         agent("qa_functional_01", "Ananya", "Functional QA Engineer", ["independent validation of code and content", "acceptance-criteria evidence", "defect reports"], "qa", "#39c27d", 1, cap="qa", sup="qa_lead_01",
               tools=REVIEW + ["run_automation_tests", "validate_content"] + UE_READ + ["get_runtime_telemetry"], perms={**P_READ, **NO, "run_tests": "YES", "unreal_runtime": "YES"},
-              max_iterations=20, max_runtime_s=2400, cost_budget=3.0),
+              max_iterations=32, max_runtime_s=2400, cost_budget=3.0),
         writer("qa_gameplay_01", "Om", "Gameplay QA", ["playtests", "playtest reports with evidence"], "qa", "#49cc8a", 2, "qa_gameplay", "qa_lead_01", tools_extra=["run_playtest"], perms=P_QA_RUN, max_runtime_s=2400),
         writer("qa_regression_01", "Lila", "Regression QA", ["full test-suite runs", "regression reports"], "qa", "#28a362", 3, "qa_regression", "qa_lead_01", tools_extra=["run_automation_tests"], perms=P_QA_RUN, max_runtime_s=2400),
         writer("qa_performance_01", "Yash", "Performance QA", ["frame-rate budgets", "performance reports from playtests"], "qa", "#1f9958", 4, "qa_performance", "qa_lead_01", tools_extra=["run_playtest"], perms=P_QA_RUN, max_runtime_s=2400),
